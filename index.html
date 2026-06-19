@@ -357,6 +357,53 @@
     font-size: 13px;
     opacity: 0.7;
   }
+
+  .host-stage.active .host-stage-icon {
+    background: linear-gradient(135deg, #f59e0b, #ec4899) !important;
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.6);
+    animation: pulse-glow 1.5s infinite;
+  }
+
+  .host-stage.active > div:last-child {
+    color: #fcd34d;
+    font-weight: bold;
+  }
+
+  .host-stage.done .host-stage-icon {
+    background: rgba(34, 197, 94, 0.3) !important;
+    border-color: #22c55e !important;
+  }
+
+  .host-stage.done > div:last-child {
+    color: #86efac;
+  }
+
+  .lock-btn {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid;
+  }
+
+  .lock-btn.locked {
+    background: rgba(34, 197, 94, 0.2);
+    border-color: #22c55e;
+    color: #86efac;
+  }
+
+  .lock-btn.unlocked {
+    background: rgba(255,255,255,0.05);
+    border-color: rgba(255,255,255,0.3);
+    color: #c4b5fd;
+  }
+
+  .player-card.locked {
+    border-color: rgba(34, 197, 94, 0.6);
+    background: rgba(34, 197, 94, 0.05);
+  }
 </style>
 </head>
 <body>
@@ -477,7 +524,10 @@
       </div>
     </div>
 
-    <div class="flex justify-end mt-6">
+    <div class="flex flex-wrap justify-between items-center mt-6 gap-3">
+      <button onclick="openConfigModal()" class="btn-secondary px-5 py-3 rounded-xl font-bold">
+        📋 配置模板导入/导出
+      </button>
       <button onclick="goToStep(2)" class="btn-primary px-8 py-3 rounded-xl font-bold text-lg">
         下一步：配置角色 →
       </button>
@@ -590,9 +640,12 @@
       </div>
     </div>
 
-    <div class="flex justify-between mt-6">
+    <div class="flex flex-wrap justify-between items-center mt-6 gap-3">
       <button onclick="goToStep(1)" class="btn-secondary px-8 py-3 rounded-xl font-bold">
         ← 返回
+      </button>
+      <button onclick="openConfigModal()" class="btn-secondary px-5 py-3 rounded-xl font-bold">
+        📋 配置模板导入/导出
       </button>
       <button onclick="goToStep(3)" class="btn-primary px-8 py-3 rounded-xl font-bold text-lg">
         下一步：开始抽卡 →
@@ -667,6 +720,60 @@
             抽签完成！
           </h3>
           <p class="text-purple-200 mb-4">命运已做出了它的选择~</p>
+
+          <div class="glass p-4 mb-6 max-w-4xl mx-auto">
+            <div class="flex items-center justify-between mb-3">
+              <div class="text-sm font-bold text-yellow-400">🎙️ 主持人控场流程</div>
+              <button onclick="advanceHostStage()" id="advanceStageBtn" class="btn-primary px-4 py-2 rounded-lg text-sm">
+                ▶️ 推进一步
+              </button>
+            </div>
+            <div class="flex gap-2 items-center justify-between overflow-x-auto pb-2">
+              <div class="host-stage flex-1 min-w-[120px] text-center" data-stage="0">
+                <div class="host-stage-icon w-10 h-10 rounded-full mx-auto mb-1 flex items-center justify-center bg-white/10 border-2 border-white/20">✅</div>
+                <div class="text-xs text-purple-200">确认完毕</div>
+              </div>
+              <div class="w-8 h-0.5 bg-white/20 flex-shrink-0"></div>
+              <div class="host-stage flex-1 min-w-[120px] text-center" data-stage="1">
+                <div class="host-stage-icon w-10 h-10 rounded-full mx-auto mb-1 flex items-center justify-center bg-white/10 border-2 border-white/20">🔒</div>
+                <div class="text-xs text-purple-200">微调锁定</div>
+              </div>
+              <div class="w-8 h-0.5 bg-white/20 flex-shrink-0"></div>
+              <div class="host-stage flex-1 min-w-[120px] text-center" data-stage="2">
+                <div class="host-stage-icon w-10 h-10 rounded-full mx-auto mb-1 flex items-center justify-center bg-white/10 border-2 border-white/20">📢</div>
+                <div class="text-xs text-purple-200">现场公布</div>
+              </div>
+              <div class="w-8 h-0.5 bg-white/20 flex-shrink-0"></div>
+              <div class="host-stage flex-1 min-w-[120px] text-center" data-stage="3">
+                <div class="host-stage-icon w-10 h-10 rounded-full mx-auto mb-1 flex items-center justify-center bg-white/10 border-2 border-white/20">📸</div>
+                <div class="text-xs text-purple-200">发送海报</div>
+              </div>
+            </div>
+            <div id="hostStageHint" class="text-center text-xs text-yellow-300 mt-2 p-2 bg-yellow-500/10 rounded-lg">
+              💡 提示：请先在下方主持人确认面板中完成全部风险项确认
+            </div>
+          </div>
+
+          <div class="glass p-4 mb-6 max-w-4xl mx-auto text-left">
+            <div class="flex items-center justify-between mb-3">
+              <div class="text-sm font-bold text-pink-400">🔧 结果微调</div>
+              <div class="text-xs text-purple-300">锁定满意的分配，再点「只重抽未锁定」</div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button onclick="redrawUnlocked()" class="btn-secondary px-3 py-2 rounded-lg text-sm">
+                🔄 只重抽未锁定
+              </button>
+              <button onclick="openReplaceModal()" class="btn-secondary px-3 py-2 rounded-lg text-sm">
+                🔀 替换角色
+              </button>
+              <button onclick="clearAllLocks()" class="btn-secondary px-3 py-2 rounded-lg text-sm">
+                🔓 全部解锁
+              </button>
+              <button onclick="applyManualAdjust()" class="btn-primary px-3 py-2 rounded-lg text-sm">
+                ✅ 应用微调结果
+              </button>
+            </div>
+          </div>
 
           <div class="flex justify-center gap-3 mb-8">
             <div id="resultTabResult" class="tab-btn active" onclick="switchResultTab('result')">📋 最终结果</div>
@@ -767,6 +874,53 @@
   </div>
 </div>
 
+<div id="replaceModal" class="modal-overlay hidden">
+  <div class="glass p-6 max-w-2xl mx-4 max-h-[85vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="title-font text-2xl text-yellow-400">🔀 替换角色</h3>
+      <button onclick="closeReplaceModal()" class="text-purple-300 hover:text-white text-2xl">✕</button>
+    </div>
+    <p class="text-sm text-purple-200 mb-4">选择要替换的玩家分配，然后从未抽中角色中选择一个替换</p>
+    <div id="replaceModalContent" class="space-y-4">
+    </div>
+    <div class="flex justify-end gap-3 mt-6">
+      <button onclick="closeReplaceModal()" class="btn-secondary px-6 py-2 rounded-xl font-bold">取消</button>
+      <button onclick="confirmReplace()" class="btn-primary px-6 py-2 rounded-xl font-bold">✅ 确认替换</button>
+    </div>
+  </div>
+</div>
+
+<div id="configModal" class="modal-overlay hidden">
+  <div class="glass p-6 max-w-2xl mx-4 max-h-[85vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="title-font text-2xl text-yellow-400">📋 配置模板导入导出</h3>
+      <button onclick="closeConfigModal()" class="text-purple-300 hover:text-white text-2xl">✕</button>
+    </div>
+    <div class="grid grid-cols-2 gap-4 mb-6">
+      <div class="glass p-4">
+        <div class="font-bold text-yellow-400 mb-2">📤 导出配置</div>
+        <p class="text-xs text-purple-200 mb-3">将当前玩家名单和角色池保存为JSON模板</p>
+        <button onclick="exportConfig()" class="btn-primary w-full px-4 py-2 rounded-xl font-bold text-sm">下载模板JSON</button>
+      </div>
+      <div class="glass p-4">
+        <div class="font-bold text-pink-400 mb-2">📥 导入配置</div>
+        <p class="text-xs text-purple-200 mb-3">选择之前保存的JSON模板文件恢复配置</p>
+        <label class="btn-secondary w-full px-4 py-2 rounded-xl font-bold text-sm text-center block cursor-pointer">
+          选择文件导入
+          <input type="file" id="configFileInput" accept=".json" class="hidden" onchange="importConfig(event)">
+        </label>
+      </div>
+    </div>
+    <div>
+      <div class="font-bold text-purple-200 mb-2">📝 或直接粘贴JSON文本</div>
+      <textarea id="configTextArea" class="w-full h-40 rounded-xl bg-white/5 border border-white/20 text-white p-3 text-sm font-mono" placeholder='{"players":[...],"roles":[...]}'></textarea>
+      <div class="flex justify-end gap-3 mt-3">
+        <button onclick="importConfigFromText()" class="btn-primary px-4 py-2 rounded-xl font-bold text-sm">从文本导入</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 
 let players = [];
@@ -783,6 +937,9 @@ let confirmNotes = [];
 let currentPosterType = 'player';
 let drawHistory = [];
 let currentResultTab = 'result';
+let lockedResults = [];
+let hostCurrentStage = -1;
+let replaceTemp = { playerIdx: -1, newRoleIdx: -1 };
 
 const acceptLevels = { crossGender: 3, intimacy: 3, tease: 3 };
 
@@ -1010,7 +1167,7 @@ function goToStep(step) {
     return;
   }
   if (step === 3 && roles.length > players.length) {
-    showWarning('角色有点多', `有 ${roles.length} 个角色但只有 ${players.length} 个玩家，多出来的 ${roles.length - players.length} 个角色会自动进入「未抽中列表」，确定继续吗？`, true, () => {
+    showWarning('角色有点多', `有 ${roles.length} 个角色但只有 ${players.length} 个玩家，多出来的 ${roles.length - players.length} 个角色会自动进入「未抽中列表」，确定继续吗？`, '', true, () => {
       proceedToStep3();
     });
     return;
@@ -1396,6 +1553,7 @@ function showHostConfirm() {
   if (hostConfirmItems.length === 0) {
     showFinalResults();
     saveDrawHistory();
+    initHostStage();
     return;
   }
   document.getElementById('hostConfirm').classList.remove('hidden');
@@ -1427,6 +1585,7 @@ function confirmAndShowResult() {
   document.getElementById('hostConfirm').classList.add('hidden');
   showFinalResults();
   saveDrawHistory();
+  initHostStage();
   if (warnings.length > 0) {
     setTimeout(() => showWarning(warnings[0].title, warnings[0].text, warnings.slice(1).map(w => `${w.title}\n${w.text}`).join('\n\n')), 300);
   }
@@ -1447,12 +1606,13 @@ function switchResultTab(tab) {
 function showFinalResults() {
   document.getElementById('drawDone').classList.remove('hidden');
   const container = document.getElementById('finalResults');
-  container.innerHTML = matchResults.map(r => {
+  container.innerHTML = matchResults.map((r, idx) => {
     const isCross = r.player.gender !== 'other' && r.role.gender !== 'other' && r.player.gender !== r.role.gender;
     const reasons = r.reasons.filter(x => !x.startsWith('⚠️')).slice(0, 2);
     const warns = r.reasons.filter(x => x.startsWith('⚠️'));
+    const isLocked = lockedResults.includes(idx);
     return `
-      <div class="player-card">
+      <div class="player-card ${isLocked ? 'locked' : ''}">
         <div class="flex items-center gap-3 mb-2">
           <div class="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-pink-500 flex items-center justify-center text-xl">
             ${genderEmoji[r.role.gender]}
@@ -1461,6 +1621,9 @@ function showFinalResults() {
             <div class="font-bold text-lg">${r.role.name}</div>
             <div class="text-xs text-purple-300">${roleGenderText[r.role.gender]}${isCross ? ' · ⚠️ 反串' : ''} · ${riskEmoji[r.role.risk]}${riskText[r.role.risk]}</div>
           </div>
+          <button class="lock-btn ${isLocked ? 'locked' : 'unlocked'}" onclick="toggleLockResult(${idx})" title="${isLocked ? '点击解锁' : '点击锁定（重抽时保留）'}">
+            ${isLocked ? '🔒 已锁定' : '🔓 未锁定'}
+          </button>
         </div>
         <div class="text-sm text-purple-200 mt-2 pt-2 border-t border-white/10">
           👤 ${r.player.name}
@@ -1640,9 +1803,363 @@ function resetDraw() {
   confirmStatus = [];
   confirmNotes = [];
   currentCardIndex = 0;
+  lockedResults = [];
+  hostCurrentStage = -1;
   document.getElementById('flipCard').classList.remove('flipped');
   document.getElementById('nextCardBtn').textContent = '翻下一张 →';
   switchResultTab('result');
+}
+
+function updateHostStageUI() {
+  const stages = document.querySelectorAll('.host-stage');
+  const hints = [
+    '💡 提示：请先在下方主持人确认面板中完成全部风险项确认',
+    '💡 提示：可锁定满意的分配，或使用微调功能调整，完成后点推进一步',
+    '💡 提示：可以现场念出结果了，或点右上角复制文字版发群',
+    '💡 提示：主持人版保存后发内部群，玩家版保存后直接发玩家群'
+  ];
+  const btnTexts = ['▶️ 开始微调锁定', '▶️ 确认公布结果', '▶️ 生成并发送海报', '✅ 全部完成！'];
+  stages.forEach((el, idx) => {
+    el.classList.toggle('active', idx === hostCurrentStage);
+    el.classList.toggle('done', idx < hostCurrentStage);
+  });
+  if (hostCurrentStage >= 0 && hostCurrentStage < hints.length) {
+    document.getElementById('hostStageHint').textContent = hints[hostCurrentStage];
+    document.getElementById('advanceStageBtn').textContent = btnTexts[hostCurrentStage];
+  }
+  if (hostCurrentStage >= 3) {
+    document.getElementById('advanceStageBtn').classList.add('opacity-60');
+    document.getElementById('advanceStageBtn').disabled = true;
+  } else {
+    document.getElementById('advanceStageBtn').classList.remove('opacity-60');
+    document.getElementById('advanceStageBtn').disabled = false;
+  }
+}
+
+function advanceHostStage() {
+  if (hostCurrentStage < 3) {
+    if (hostCurrentStage === -1) {
+      const allConfirmed = hostConfirmItems.length === 0 || confirmStatus.every(Boolean);
+      if (!allConfirmed) {
+        showWarning('还有风险项未确认', `主持人确认面板里还有 ${confirmStatus.filter(x => !x).length} 项没勾选，请先逐条完成确认~`);
+        return;
+      }
+    }
+    if (hostCurrentStage === 2) {
+      showPosterModal();
+    }
+    hostCurrentStage++;
+    updateHostStageUI();
+  }
+}
+
+function initHostStage() {
+  hostCurrentStage = hostConfirmItems.length === 0 ? 0 : -1;
+  if (hostConfirmItems.length === 0) hostCurrentStage = 0;
+  updateHostStageUI();
+}
+
+function toggleLockResult(idx) {
+  if (lockedResults.includes(idx)) {
+    lockedResults = lockedResults.filter(x => x !== idx);
+  } else {
+    lockedResults.push(idx);
+  }
+  showFinalResults();
+}
+
+function clearAllLocks() {
+  lockedResults = [];
+  showFinalResults();
+  showWarning('已全部解锁', '所有分配已解锁，可以重新整体重抽或只重抽了~');
+}
+
+function redrawUnlocked() {
+  if (lockedResults.length === 0) {
+    if (!confirm('还没有锁定任何分配，确定要全部重抽吗？')) return;
+    matchResults = smartMatch();
+    const { warns, confirms } = checkWarnings(matchResults);
+    warnings = warns;
+    hostConfirmItems = confirms;
+    confirmStatus = new Array(confirms.length).fill(false);
+    confirmNotes = new Array(confirms.length).fill('');
+    initHostStage();
+    showFinalResults();
+    saveDrawHistory();
+    return;
+  }
+
+  const lockedItems = lockedResults.map(i => matchResults[i]);
+  const lockedPlayerNames = new Set(lockedItems.map(r => r.player.name));
+  const lockedRoleNames = new Set(lockedItems.map(r => r.role.name));
+
+  const freePlayers = players.filter(p => !lockedPlayerNames.has(p.name));
+  const lockedRolesArr = lockedItems.map(r => r.role);
+  const freeRoles = roles.filter(r => !lockedRoleNames.has(r.name));
+
+  if (freePlayers.length === 0) {
+    showWarning('全部锁定啦', '所有玩家的分配都已锁定，没有可重抽的了~');
+    return;
+  }
+  if (freeRoles.length < freePlayers.length) {
+    showWarning('角色不够了', `未锁定的角色只有 ${freeRoles.length} 个，但有 ${freePlayers.length} 个玩家，解锁一些或全部重抽吧`);
+    return;
+  }
+
+  const tempAllRoles = [...freeRoles, ...lockedRolesArr];
+  const shuffledFree = [...freeRoles].sort(() => Math.random() - 0.5);
+  const usedFreeRoles = shuffledFree.slice(0, freePlayers.length);
+  const allRolesForMatch = [...usedFreeRoles, ...lockedRolesArr];
+
+  const tempPlayers = [...freePlayers, ...lockedItems.map(r => r.player)];
+  const tempRoles = allRolesForMatch;
+
+  const originalPlayers = [...players];
+  const originalRoles = [...roles];
+  players = tempPlayers;
+  roles = tempRoles;
+
+  const newResults = [];
+  const usedFree = new Set();
+  const usedPlayers = new Set();
+
+  lockedItems.forEach(item => {
+    newResults.push(item);
+    usedPlayers.add(item.player.name);
+  });
+
+  const pairs = [];
+  for (let i = 0; i < freePlayers.length; i++) {
+    for (let j = 0; j < usedFreeRoles.length; j++) {
+      const { score, reasons } = calculateMatchScore(freePlayers[i], usedFreeRoles[j]);
+      pairs.push({ pIdx: i, rIdx: j, score, reasons });
+    }
+  }
+  pairs.sort((a, b) => b.score - a.score);
+
+  for (const p of pairs) {
+    if (usedPlayers.has(freePlayers[p.pIdx].name) || usedFree.has(p.rIdx)) continue;
+    usedPlayers.add(freePlayers[p.pIdx].name);
+    usedFree.add(p.rIdx);
+    newResults.push({
+      player: freePlayers[p.pIdx],
+      role: usedFreeRoles[p.rIdx],
+      score: p.score,
+      reasons: p.reasons
+    });
+  }
+
+  while (newResults.length < players.length) {
+    for (let i = 0; i < freePlayers.length; i++) {
+      if (!usedPlayers.has(freePlayers[i].name)) {
+        for (let j = 0; j < usedFreeRoles.length; j++) {
+          if (!usedFree.has(j)) {
+            usedPlayers.add(freePlayers[i].name);
+            usedFree.add(j);
+            const { score, reasons } = calculateMatchScore(freePlayers[i], usedFreeRoles[j]);
+            newResults.push({ player: freePlayers[i], role: usedFreeRoles[j], score, reasons });
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  const finalResults = [];
+  originalPlayers.forEach(p => {
+    const found = newResults.find(r => r.player.name === p.name);
+    if (found) finalResults.push(found);
+  });
+
+  matchResults = finalResults;
+  const lockedRoleSet = new Set(lockedRolesArr.map(r => r.name));
+  unselectedRoles = originalRoles.filter(r => !matchResults.some(m => m.role.name === r.name));
+
+  const { warns, confirms } = checkWarnings(matchResults);
+  warnings = warns;
+  hostConfirmItems = confirms;
+  confirmStatus = new Array(confirms.length).fill(false);
+  confirmNotes = new Array(confirms.length).fill('');
+
+  players = originalPlayers;
+  roles = originalRoles;
+
+  initHostStage();
+  showFinalResults();
+  saveDrawHistory();
+  showWarning('已重抽未锁定项', `保留了 ${lockedResults.length} 个锁定分配，重抽了 ${freePlayers.length} 个玩家的角色~`);
+}
+
+function openReplaceModal() {
+  if (unselectedRoles.length === 0) {
+    showWarning('没有可替换角色', '未抽中角色列表为空，无法替换。可以先角色多于玩家的场景再使用~');
+    return;
+  }
+  replaceTemp = { playerIdx: -1, newRoleIdx: -1 };
+  const content = document.getElementById('replaceModalContent');
+  content.innerHTML = `
+    <div>
+      <div class="font-bold text-sm mb-2 text-yellow-400">第一步：选择要替换的分配</div>
+      <div class="space-y-2 max-h-48 overflow-y-auto">
+        ${matchResults.map((r, i) => `
+          <label class="flex items-center gap-2 p-2 rounded-lg bg-white/5 cursor-pointer hover:bg-white/10">
+            <input type="radio" name="replacePlayer" value="${i}" onchange="replaceTemp.playerIdx = ${i}">
+            <span class="text-sm">${r.player.name} → ${r.role.name}${lockedResults.includes(i) ? ' 🔒' : ''}</span>
+          </label>
+        `).join('')}
+      </div>
+    </div>
+    <div>
+      <div class="font-bold text-sm mb-2 text-pink-400">第二步：选择替换角色</div>
+      <div class="space-y-2 max-h-48 overflow-y-auto">
+        ${unselectedRoles.map((r, i) => `
+          <label class="flex items-center gap-2 p-2 rounded-lg bg-white/5 cursor-pointer hover:bg-white/10">
+            <input type="radio" name="replaceRole" value="${i}" onchange="replaceTemp.newRoleIdx = ${i}">
+            <span class="text-sm">${genderEmoji[r.gender]} ${r.name} <span class="text-xs opacity-60">${roleGenderText[r.gender]} · ${intimacyText[r.intimacy]}</span></span>
+          </label>
+        `).join('')}
+      </div>
+    </div>
+  `;
+  document.getElementById('replaceModal').classList.remove('hidden');
+}
+
+function closeReplaceModal() {
+  document.getElementById('replaceModal').classList.add('hidden');
+}
+
+function confirmReplace() {
+  if (replaceTemp.playerIdx === -1 || replaceTemp.newRoleIdx === -1) {
+    showWarning('请选择完整', '要先选要替换的分配，还要选用来替换的角色哦~');
+    return;
+  }
+
+  const oldRole = matchResults[replaceTemp.playerIdx].role;
+  const newRole = unselectedRoles[replaceTemp.newRoleIdx];
+  const player = matchResults[replaceTemp.playerIdx].player;
+
+  const { score, reasons } = calculateMatchScore(player, newRole);
+  matchResults[replaceTemp.playerIdx] = {
+    player, role: newRole, score, reasons
+  };
+
+  unselectedRoles[replaceTemp.newRoleIdx] = oldRole;
+
+  const { warns, confirms } = checkWarnings(matchResults);
+  warnings = warns;
+  hostConfirmItems = confirms;
+  confirmStatus = new Array(confirms.length).fill(false);
+  confirmNotes = new Array(confirms.length).fill('');
+
+  closeReplaceModal();
+  showFinalResults();
+  saveDrawHistory();
+  showWarning('替换成功！', `${player.name} 的角色已从「${oldRole.name}」换成「${newRole.name}」，风险确认已重新计算~`);
+}
+
+function applyManualAdjust() {
+  const { warns, confirms } = checkWarnings(matchResults);
+  warnings = warns;
+  hostConfirmItems = confirms;
+  confirmStatus = new Array(confirms.length).fill(false);
+  confirmNotes = new Array(confirms.length).fill('');
+  saveDrawHistory();
+  showWarning('微调已应用', '所有调整已保存，复盘、海报、历史记录都会使用最新的结果~');
+}
+
+function openConfigModal() {
+  document.getElementById('configTextArea').value = '';
+  document.getElementById('configModal').classList.remove('hidden');
+}
+
+function closeConfigModal() {
+  document.getElementById('configModal').classList.add('hidden');
+}
+
+function exportConfig() {
+  const config = {
+    version: '1.0',
+    exportedAt: new Date().toISOString(),
+    players: players.map(p => ({
+      name: p.name, gender: p.gender, tags: [...p.tags],
+      acceptCrossGender: p.acceptCrossGender,
+      acceptIntimacy: p.acceptIntimacy,
+      acceptTease: p.acceptTease
+    })),
+    roles: roles.map(r => ({
+      name: r.name, gender: r.gender, relations: [...r.relations],
+      temperament: r.temperament, intimacy: r.intimacy, risk: r.risk
+    }))
+  };
+
+  const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.download = `反串抽签配置_${new Date().toISOString().slice(0, 10)}.json`;
+  link.href = URL.createObjectURL(blob);
+  link.click();
+  URL.revokeObjectURL(link.href);
+  showWarning('导出成功！', '配置模板已保存为JSON文件，下次可以直接导入~');
+}
+
+function applyLoadedConfig(data) {
+  if (!data.players || !data.roles) {
+    showWarning('配置格式错误', '这个JSON文件不是有效的配置模板，请检查文件内容~');
+    return;
+  }
+
+  players = data.players.map(p => ({
+    name: p.name,
+    gender: p.gender || 'other',
+    tags: p.tags || [],
+    acceptCrossGender: p.acceptCrossGender || 3,
+    acceptIntimacy: p.acceptIntimacy || 3,
+    acceptTease: p.acceptTease || 3
+  }));
+
+  roles = data.roles.map(r => ({
+    name: r.name,
+    gender: r.gender || 'other',
+    relations: r.relations || [],
+    temperament: r.temperament || '戏精',
+    intimacy: r.intimacy || 'none',
+    risk: r.risk || 1
+  }));
+
+  renderPlayers();
+  renderRoles();
+  updateStepStatus();
+  closeConfigModal();
+  showWarning('导入成功！', `已导入 ${players.length} 位玩家 + ${roles.length} 个角色，可以在此基础上微调后开抽~`);
+}
+
+function importConfig(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      applyLoadedConfig(data);
+    } catch (err) {
+      showWarning('解析失败', 'JSON文件解析失败，请确认文件格式正确~');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function importConfigFromText() {
+  const text = document.getElementById('configTextArea').value.trim();
+  if (!text) {
+    showWarning('文本为空', '请先把JSON配置文本粘贴到输入框里~');
+    return;
+  }
+  try {
+    const data = JSON.parse(text);
+    applyLoadedConfig(data);
+  } catch (err) {
+    showWarning('解析失败', 'JSON文本解析失败，请检查格式是否正确~');
+  }
 }
 
 function saveDrawHistory() {
@@ -1747,20 +2264,7 @@ function restoreHistoryRecord(idx) {
 }
 
 function openHistoryPoster(idx) {
-  const record = drawHistory[idx];
-  const tempResults = matchResults;
-  const tempUnselected = unselectedRoles;
-  const tempConfirms = hostConfirmItems;
-
-  matchResults = JSON.parse(JSON.stringify(record.matchResults));
-  unselectedRoles = JSON.parse(JSON.stringify(record.unselectedRoles));
-  hostConfirmItems = JSON.parse(JSON.stringify(record.hostConfirmItems));
-
-  showPosterModal();
-
-  matchResults = tempResults;
-  unselectedRoles = tempUnselected;
-  hostConfirmItems = tempConfirms;
+  showPosterModal(idx);
 }
 
 function clearAllHistory() {
@@ -1803,15 +2307,40 @@ function closeWarning() {
   btn.onclick = closeWarning;
 }
 
+let posterHistoryContext = null;
+
 function switchPosterTab(type) {
   currentPosterType = type;
   document.getElementById('playerTab').classList.toggle('active', type === 'player');
   document.getElementById('hostTab').classList.toggle('active', type === 'host');
-  renderPoster(type);
+  if (posterHistoryContext) {
+    const tempResults = matchResults;
+    const tempUnselected = unselectedRoles;
+    const tempConfirms = hostConfirmItems;
+    matchResults = posterHistoryContext.matchResults;
+    unselectedRoles = posterHistoryContext.unselectedRoles;
+    hostConfirmItems = posterHistoryContext.hostConfirmItems;
+    renderPoster(type);
+    matchResults = tempResults;
+    unselectedRoles = tempUnselected;
+    hostConfirmItems = tempConfirms;
+  } else {
+    renderPoster(type);
+  }
 }
 
-function showPosterModal() {
+function showPosterModal(historyIdx = null) {
   document.getElementById('posterModal').classList.remove('hidden');
+  if (historyIdx !== null) {
+    const record = drawHistory[historyIdx];
+    posterHistoryContext = {
+      matchResults: JSON.parse(JSON.stringify(record.matchResults)),
+      unselectedRoles: JSON.parse(JSON.stringify(record.unselectedRoles)),
+      hostConfirmItems: JSON.parse(JSON.stringify(record.hostConfirmItems))
+    };
+  } else {
+    posterHistoryContext = null;
+  }
   switchPosterTab('player');
 }
 
