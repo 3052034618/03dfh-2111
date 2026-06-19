@@ -287,6 +287,76 @@
     color: #ddd6fe;
     margin-top: 4px;
   }
+
+  .confirm-item {
+    transition: all 0.3s;
+  }
+
+  .confirm-item.confirmed {
+    opacity: 0.7;
+  }
+
+  .confirm-item.confirmed .item-title {
+    text-decoration: line-through;
+  }
+
+  .checkbox-custom {
+    width: 20px;
+    height: 20px;
+    accent-color: #f59e0b;
+    cursor: pointer;
+  }
+
+  .note-input {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    padding: 6px 10px;
+    color: #fff;
+    font-size: 12px;
+    width: 100%;
+    margin-top: 6px;
+  }
+
+  .note-input:focus {
+    outline: none;
+    border-color: #f59e0b;
+  }
+
+  .score-bar {
+    height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .score-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ef4444, #f59e0b, #22c55e);
+    border-radius: 3px;
+    transition: width 0.5s;
+  }
+
+  .record-card {
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+
+  .record-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(245, 158, 11, 0.6);
+  }
+
+  .unselected-role {
+    background: rgba(255,255,255,0.05);
+    border: 1px dashed rgba(255,255,255,0.2);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin: 4px;
+    display: inline-block;
+    font-size: 13px;
+    opacity: 0.7;
+  }
 </style>
 </head>
 <body>
@@ -576,16 +646,17 @@
 
         <div id="hostConfirm" class="hidden py-8">
           <div class="text-5xl mb-4">🎙️</div>
-          <h3 class="title-font text-3xl mb-6 text-yellow-400">主持人确认面板</h3>
-          <p class="text-purple-200 mb-6">以下组合请在现场逐一确认后再公布结果：</p>
+          <h3 class="title-font text-3xl mb-2 text-yellow-400">主持人确认面板</h3>
+          <p class="text-purple-200 mb-2">以下组合请在现场逐一确认后再公布结果：</p>
+          <p id="confirmProgress" class="text-sm text-purple-300 mb-6">已确认：0 / 0</p>
           <div id="hostConfirmList" class="text-left max-w-2xl mx-auto mb-8 space-y-4">
           </div>
           <div class="flex flex-wrap justify-center gap-4">
             <button onclick="redrawAll()" class="btn-secondary px-6 py-3 rounded-xl font-bold">
               🔄 不满意，重抽
             </button>
-            <button onclick="confirmAndShowResult()" class="btn-primary px-8 py-3 rounded-xl font-bold text-lg">
-              ✅ 已全部确认，公布结果
+            <button id="confirmAllBtn" onclick="confirmAndShowResult()" class="btn-primary px-8 py-3 rounded-xl font-bold text-lg opacity-50 cursor-not-allowed" disabled>
+              ⏳ 请先逐条确认
             </button>
           </div>
         </div>
@@ -595,9 +666,56 @@
           <h3 class="title-font text-4xl mb-6 bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">
             抽签完成！
           </h3>
-          <p class="text-purple-200 mb-8">命运已做出了它的选择~</p>
-          <div id="finalResults" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 text-left max-w-4xl mx-auto">
+          <p class="text-purple-200 mb-4">命运已做出了它的选择~</p>
+
+          <div class="flex justify-center gap-3 mb-8">
+            <div id="resultTabResult" class="tab-btn active" onclick="switchResultTab('result')">📋 最终结果</div>
+            <div id="resultTabReview" class="tab-btn" onclick="switchResultTab('review')">📊 主持人复盘</div>
+            <div id="resultTabHistory" class="tab-btn" onclick="switchResultTab('history')">📜 抽签记录</div>
           </div>
+
+          <div id="resultView">
+            <div id="finalResults" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 text-left max-w-4xl mx-auto">
+            </div>
+
+            <div id="unselectedRolesSection" class="hidden max-w-4xl mx-auto mb-8 text-left">
+              <div class="glass p-4">
+                <h4 class="text-lg font-bold mb-3 text-purple-200">📭 未抽中角色（共 <span id="unselectedCount">0</span> 个）</h4>
+                <div id="unselectedRolesList" class="flex flex-wrap">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="reviewView" class="hidden text-left max-w-4xl mx-auto mb-8">
+            <div class="glass p-6 mb-4">
+              <div class="flex justify-between items-center mb-4">
+                <h4 class="text-xl font-bold text-yellow-400">📊 分配复盘详情</h4>
+                <button onclick="copyReviewText()" class="btn-secondary px-4 py-2 rounded-lg text-sm">
+                  📋 一键复制文字版
+                </button>
+              </div>
+              <div id="reviewDetails" class="space-y-4">
+              </div>
+            </div>
+          </div>
+
+          <div id="historyView" class="hidden text-left max-w-4xl mx-auto mb-8">
+            <div class="glass p-6">
+              <div class="flex justify-between items-center mb-4">
+                <h4 class="text-xl font-bold text-yellow-400">📜 抽签历史记录</h4>
+                <button onclick="clearAllHistory()" class="btn-danger px-4 py-2 rounded-lg text-sm">
+                  🗑️ 清空所有记录
+                </button>
+              </div>
+              <div id="historyList" class="space-y-3">
+              </div>
+              <div id="historyEmpty" class="text-center py-8 text-purple-300 opacity-60">
+                还没有历史记录，完成一次抽签后会自动保存~
+              </div>
+            </div>
+          </div>
+
           <div class="flex flex-wrap justify-center gap-4">
             <button onclick="resetDraw()" class="btn-secondary px-8 py-3 rounded-xl font-bold">
               🔄 重新抽卡
@@ -656,10 +774,15 @@ let roles = [];
 let selectedPlayerTags = new Set();
 let selectedRelationTags = new Set();
 let matchResults = [];
+let unselectedRoles = [];
 let currentCardIndex = 0;
 let warnings = [];
 let hostConfirmItems = [];
+let confirmStatus = [];
+let confirmNotes = [];
 let currentPosterType = 'player';
+let drawHistory = [];
+let currentResultTab = 'result';
 
 const acceptLevels = { crossGender: 3, intimacy: 3, tease: 3 };
 
@@ -887,9 +1010,15 @@ function goToStep(step) {
     return;
   }
   if (step === 3 && roles.length > players.length) {
-    showWarning('角色有点多', `有 ${roles.length} 个角色但只有 ${players.length} 个玩家，多出来的角色会被打入冷宫哦，确定继续吗？`, true);
+    showWarning('角色有点多', `有 ${roles.length} 个角色但只有 ${players.length} 个玩家，多出来的 ${roles.length - players.length} 个角色会自动进入「未抽中列表」，确定继续吗？`, true, () => {
+      proceedToStep3();
+    });
     return;
   }
+  proceedToStep3(step);
+}
+
+function proceedToStep3(step = 3) {
   document.getElementById('section-players').classList.toggle('hidden', step !== 1);
   document.getElementById('section-roles').classList.toggle('hidden', step !== 2);
   document.getElementById('section-result').classList.toggle('hidden', step !== 3);
@@ -964,15 +1093,18 @@ function calculateMatchScore(player, role) {
 }
 
 function smartMatch() {
-  const shuffledRoles = [...roles].sort(() => Math.random() - 0.5).slice(0, players.length);
+  const allRolesShuffled = [...roles].sort(() => Math.random() - 0.5);
+  const matchedRoles = allRolesShuffled.slice(0, players.length);
+  unselectedRoles = allRolesShuffled.slice(players.length);
+
   const results = [];
   const usedPlayers = new Set();
   const usedRoles = new Set();
   const sortedPairs = [];
 
   for (let i = 0; i < players.length; i++) {
-    for (let j = 0; j < shuffledRoles.length; j++) {
-      const { score, reasons } = calculateMatchScore(players[i], shuffledRoles[j]);
+    for (let j = 0; j < matchedRoles.length; j++) {
+      const { score, reasons } = calculateMatchScore(players[i], matchedRoles[j]);
       sortedPairs.push({ playerIdx: i, roleIdx: j, score, reasons });
     }
   }
@@ -983,7 +1115,7 @@ function smartMatch() {
     usedRoles.add(pair.roleIdx);
     results.push({
       player: players[pair.playerIdx],
-      role: shuffledRoles[pair.roleIdx],
+      role: matchedRoles[pair.roleIdx],
       score: pair.score,
       reasons: pair.reasons
     });
@@ -992,12 +1124,12 @@ function smartMatch() {
   while (results.length < players.length) {
     for (let i = 0; i < players.length; i++) {
       if (!usedPlayers.has(i)) {
-        for (let j = 0; j < shuffledRoles.length; j++) {
+        for (let j = 0; j < matchedRoles.length; j++) {
           if (!usedRoles.has(j)) {
             usedPlayers.add(i);
             usedRoles.add(j);
-            const { score, reasons } = calculateMatchScore(players[i], shuffledRoles[j]);
-            results.push({ player: players[i], role: shuffledRoles[j], score, reasons });
+            const { score, reasons } = calculateMatchScore(players[i], matchedRoles[j]);
+            results.push({ player: players[i], role: matchedRoles[j], score, reasons });
             break;
           }
         }
@@ -1005,6 +1137,23 @@ function smartMatch() {
     }
   }
   return results;
+}
+
+function findCPPartner(results, currentResult, currentIndex) {
+  for (let i = 0; i < results.length; i++) {
+    if (i === currentIndex) continue;
+    const other = results[i];
+    const otherRels = other.role.relations.map(r => r.toLowerCase());
+    const currentRels = currentResult.role.relations.map(r => r.toLowerCase());
+    const otherHasCP = otherRels.some(r => r.includes('情侣') || r.includes('cp'));
+    const currentHasCP = currentRels.some(r => r.includes('情侣') || r.includes('cp'));
+    const refersTo = currentRels.some(r => r.includes(other.role.name.toLowerCase())) ||
+                    otherRels.some(r => r.includes(currentResult.role.name.toLowerCase()));
+    if (other.role.intimacy === 'heavy' && (otherHasCP || currentHasCP || refersTo)) {
+      return other;
+    }
+  }
+  return null;
 }
 
 function checkWarnings(results) {
@@ -1015,18 +1164,24 @@ function checkWarnings(results) {
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
     if (r.role.intimacy === 'heavy' && r.player.acceptIntimacy <= 1) {
+      const otherPlayer = findCPPartner(results, r, i);
+      const bothPlayers = otherPlayer ? [r.player.name, otherPlayer.player.name] : [r.player.name];
       warns.push({
         level: 'danger',
         title: '🚨 浓情CP警报！',
-        text: `${r.player.name} 的亲密线接受度极低(1/5)，却抽到了 ${r.role.name} (浓情CP角色)！请务必现场单独确认！`
+        text: `${r.player.name} 的亲密线接受度极低(1/5)，却抽到了 ${r.role.name} (浓情CP角色)！请务必现场双方确认！`
       });
       confirms.push({
-        type: 'single',
+        type: 'pair',
         icon: '❤️‍🔥',
-        players: [r.player.name],
-        roleName: r.role.name,
-        title: '亲密线接受度冲突',
-        desc: `${r.player.name} 亲密接受度仅 ${r.player.acceptIntimacy}/5，却抽到浓情CP角色「${r.role.name}」。请现场口头确认TA是否能接受这个角色的感情戏。`
+        players: bothPlayers,
+        roleName: otherPlayer ? `${r.role.name} & ${otherPlayer.role.name}` : r.role.name,
+        title: '亲密线接受度冲突（需双方确认）',
+        desc: otherPlayer
+          ? `${bothPlayers.join(' 和 ')} 分到了浓情CP角色，但 ${r.player.name} 亲密接受度仅 ${r.player.acceptIntimacy}/5。请两位现场互相确认是否都能接受这段感情戏。`
+          : `${r.player.name} 亲密接受度仅 ${r.player.acceptIntimacy}/5，却抽到浓情CP角色「${r.role.name}」。请现场找另一位CP玩家（或主持人）与TA双方确认是否能接受。`,
+        requireBothConfirm: true,
+        primaryPlayer: r.player.name
       });
     } else if (r.role.intimacy === 'light' && r.player.acceptIntimacy <= 1) {
       warns.push({
@@ -1152,11 +1307,44 @@ function startDraw() {
   const { warns, confirms } = checkWarnings(matchResults);
   warnings = warns;
   hostConfirmItems = confirms;
+  confirmStatus = new Array(confirms.length).fill(false);
+  confirmNotes = new Array(confirms.length).fill('');
   currentCardIndex = 0;
   document.getElementById('drawIdle').classList.add('hidden');
   document.getElementById('drawProgress').classList.remove('hidden');
   document.getElementById('flipCard').classList.remove('flipped');
   setTimeout(() => showCard(0), 300);
+}
+
+function toggleConfirmItem(idx) {
+  confirmStatus[idx] = !confirmStatus[idx];
+  updateConfirmUI();
+}
+
+function updateConfirmNote(idx, value) {
+  confirmNotes[idx] = value;
+}
+
+function updateConfirmUI() {
+  const confirmedCount = confirmStatus.filter(Boolean).length;
+  const total = hostConfirmItems.length;
+  document.getElementById('confirmProgress').textContent = `已确认：${confirmedCount} / ${total}`;
+
+  const items = document.querySelectorAll('.confirm-item');
+  items.forEach((item, idx) => {
+    item.classList.toggle('confirmed', confirmStatus[idx]);
+  });
+
+  const btn = document.getElementById('confirmAllBtn');
+  if (confirmedCount === total) {
+    btn.disabled = false;
+    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+    btn.textContent = '✅ 已全部确认，公布结果';
+  } else {
+    btn.disabled = true;
+    btn.classList.add('opacity-50', 'cursor-not-allowed');
+    btn.textContent = `⏳ 还剩 ${total - confirmedCount} 项需确认`;
+  }
 }
 
 function showCard(index) {
@@ -1207,18 +1395,23 @@ function showHostConfirm() {
   document.getElementById('drawProgress').classList.add('hidden');
   if (hostConfirmItems.length === 0) {
     showFinalResults();
+    saveDrawHistory();
     return;
   }
   document.getElementById('hostConfirm').classList.remove('hidden');
+  updateConfirmUI();
   const list = document.getElementById('hostConfirmList');
   list.innerHTML = hostConfirmItems.map((item, idx) => `
-    <div class="glass p-4">
+    <div class="confirm-item glass p-4" data-idx="${idx}">
       <div class="flex items-start gap-3">
+        <input type="checkbox" class="checkbox-custom mt-1" ${confirmStatus[idx] ? 'checked' : ''} onchange="toggleConfirmItem(${idx})">
         <div class="text-3xl">${item.icon}</div>
         <div class="flex-1">
-          <div class="font-bold text-lg mb-1">${idx + 1}. ${item.title}</div>
-          <div class="text-sm text-yellow-300 mb-2">${item.players.join(' / ')} → ${item.roleName}</div>
-          <div class="text-sm text-purple-200">${item.desc}</div>
+          <div class="item-title font-bold text-lg mb-1">${idx + 1}. ${item.title}</div>
+          <div class="text-sm text-yellow-300 mb-2">👤 ${item.players.join(' / ')}  →  🎴 ${item.roleName}</div>
+          <div class="text-sm text-purple-200 mb-2">${item.desc}</div>
+          ${item.requireBothConfirm ? `<div class="text-xs text-pink-300 bg-pink-500/20 rounded px-2 py-1 inline-block">⚠️ 需双方玩家都确认同意</div>` : ''}
+          <input type="text" class="note-input" placeholder="📝 现场备注（可选，如：玩家同意/需要重抽/已确认）" value="${confirmNotes[idx] || ''}" oninput="updateConfirmNote(${idx}, this.value)">
         </div>
       </div>
     </div>
@@ -1233,9 +1426,22 @@ function redrawAll() {
 function confirmAndShowResult() {
   document.getElementById('hostConfirm').classList.add('hidden');
   showFinalResults();
+  saveDrawHistory();
   if (warnings.length > 0) {
     setTimeout(() => showWarning(warnings[0].title, warnings[0].text, warnings.slice(1).map(w => `${w.title}\n${w.text}`).join('\n\n')), 300);
   }
+}
+
+function switchResultTab(tab) {
+  currentResultTab = tab;
+  document.getElementById('resultTabResult').classList.toggle('active', tab === 'result');
+  document.getElementById('resultTabReview').classList.toggle('active', tab === 'review');
+  document.getElementById('resultTabHistory').classList.toggle('active', tab === 'history');
+  document.getElementById('resultView').classList.toggle('hidden', tab !== 'result');
+  document.getElementById('reviewView').classList.toggle('hidden', tab !== 'review');
+  document.getElementById('historyView').classList.toggle('hidden', tab !== 'history');
+  if (tab === 'review') renderReviewView();
+  if (tab === 'history') renderHistoryView();
 }
 
 function showFinalResults() {
@@ -1265,6 +1471,162 @@ function showFinalResults() {
       </div>
     `;
   }).join('');
+
+  if (unselectedRoles.length > 0) {
+    document.getElementById('unselectedRolesSection').classList.remove('hidden');
+    document.getElementById('unselectedCount').textContent = unselectedRoles.length;
+    document.getElementById('unselectedRolesList').innerHTML = unselectedRoles.map(r => `
+      <div class="unselected-role">
+        ${genderEmoji[r.gender]} ${r.name}
+        <span class="text-xs opacity-60">${roleGenderText[r.gender]}</span>
+      </div>
+    `).join('');
+  } else {
+    document.getElementById('unselectedRolesSection').classList.add('hidden');
+  }
+}
+
+function renderReviewView() {
+  const container = document.getElementById('reviewDetails');
+  const allScores = matchResults.map(r => r.score);
+  const maxScore = Math.max(...allScores);
+  const minScore = Math.min(...allScores);
+  const avgScore = (allScores.reduce((a, b) => a + b, 0) / allScores.length).toFixed(1);
+
+  container.innerHTML = `
+    <div class="glass p-4 mb-4">
+      <div class="grid grid-cols-3 gap-4 text-center">
+        <div>
+          <div class="text-2xl font-bold text-green-400">${maxScore.toFixed(0)}</div>
+          <div class="text-xs text-purple-300">最高分</div>
+        </div>
+        <div>
+          <div class="text-2xl font-bold text-yellow-400">${avgScore}</div>
+          <div class="text-xs text-purple-300">平均分</div>
+        </div>
+        <div>
+          <div class="text-2xl font-bold text-red-400">${minScore.toFixed(0)}</div>
+          <div class="text-xs text-purple-300">最低分</div>
+        </div>
+      </div>
+    </div>
+
+    ${matchResults.map((r, idx) => {
+      const scorePct = Math.max(10, Math.min(100, ((r.score - minScore) / Math.max(1, maxScore - minScore)) * 100));
+      const reasons = r.reasons.filter(x => !x.startsWith('⚠️'));
+      const warns = r.reasons.filter(x => x.startsWith('⚠️'));
+      const isCross = r.player.gender !== 'other' && r.role.gender !== 'other' && r.player.gender !== r.role.gender;
+      return `
+        <div class="glass p-4">
+          <div class="flex justify-between items-start mb-2">
+            <div>
+              <div class="font-bold text-lg">${idx + 1}. ${r.player.name} → ${r.role.name}</div>
+              <div class="text-sm text-purple-300">
+                ${genderText[r.player.gender]}玩家 ${isCross ? '⚠️ 反串' : '✅ 顺色'} ${roleGenderText[r.role.gender]}
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-2xl font-bold ${r.score > 50 ? 'text-green-400' : r.score > 20 ? 'text-yellow-400' : 'text-red-400'}">${r.score.toFixed(0)}</div>
+              <div class="text-xs text-purple-300">匹配分</div>
+            </div>
+          </div>
+          <div class="score-bar mb-3">
+            <div class="score-bar-fill" style="width: ${scorePct}%"></div>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-center text-xs mb-3">
+            <div class="bg-white/5 rounded p-2">🎭 反串: ${r.player.acceptCrossGender}/5</div>
+            <div class="bg-white/5 rounded p-2">💕 亲密: ${r.player.acceptIntimacy}/5</div>
+            <div class="bg-white/5 rounded p-2">🎪 起哄: ${r.player.acceptTease}/5</div>
+          </div>
+          ${reasons.length ? `
+            <div class="mb-2">
+              <div class="text-xs text-green-400 mb-1">✅ 加分理由</div>
+              ${reasons.map(rr => `<div class="text-sm text-green-300">+ ${rr}</div>`).join('')}
+            </div>
+          ` : ''}
+          ${warns.length ? `
+            <div class="mb-2">
+              <div class="text-xs text-red-400 mb-1">⚠️ 扣分/风险点</div>
+              ${warns.map(rr => `<div class="text-sm text-red-300">- ${rr.replace('⚠️ ', '')}</div>`).join('')}
+            </div>
+          ` : ''}
+          ${r.role.risk > 1 ? `<div class="text-xs text-yellow-300">⚠️ 角色风险等级: ${riskEmoji[r.role.risk]} ${riskText[r.role.risk]}</div>` : ''}
+        </div>
+      `;
+    }).join('')}
+
+    ${hostConfirmItems.length > 0 ? `
+      <div class="glass p-4">
+        <div class="font-bold text-lg mb-3 text-yellow-400">🎙️ 触发过的风险确认</div>
+        ${hostConfirmItems.map((item, idx) => `
+          <div class="mb-3 pb-3 border-b border-white/10 last:border-0">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">${item.icon}</span>
+              <span class="font-bold">${item.title}</span>
+              ${confirmStatus[idx] ? '<span class="text-xs bg-green-500/30 text-green-300 px-2 py-0.5 rounded">已确认</span>' : '<span class="text-xs bg-red-500/30 text-red-300 px-2 py-0.5 rounded">未确认</span>'}
+            </div>
+            <div class="text-sm text-purple-200 mt-1">👤 ${item.players.join(' / ')} → 🎴 ${item.roleName}</div>
+            <div class="text-xs text-purple-300 mt-1">${item.desc}</div>
+            ${confirmNotes[idx] ? `<div class="text-xs text-yellow-300 mt-1">📝 备注: ${confirmNotes[idx]}</div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    ` : ''}
+
+    ${unselectedRoles.length > 0 ? `
+      <div class="glass p-4">
+        <div class="font-bold text-lg mb-3 text-purple-300">📭 未抽中角色 (${unselectedRoles.length}个)</div>
+        <div class="flex flex-wrap gap-2">
+          ${unselectedRoles.map(r => `<span class="unselected-role">${genderEmoji[r.gender]} ${r.name}</span>`).join('')}
+        </div>
+      </div>
+    ` : ''}
+  `;
+}
+
+function copyReviewText() {
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+  let text = `🎭 反串排位抽签复盘报告\n`;
+  text += `生成时间: ${dateStr}\n`;
+  text += `玩家数: ${players.length} | 角色数: ${roles.length} | 未抽中: ${unselectedRoles.length}\n\n`;
+  text += `═══════════════════════════════\n\n`;
+
+  matchResults.forEach((r, idx) => {
+    const isCross = r.player.gender !== 'other' && r.role.gender !== 'other' && r.player.gender !== r.role.gender;
+    const reasons = r.reasons.filter(x => !x.startsWith('⚠️'));
+    const warns = r.reasons.filter(x => x.startsWith('⚠️'));
+    text += `【${idx + 1}】${r.player.name} → ${r.role.name}\n`;
+    text += `  匹配分: ${r.score.toFixed(0)} | ${isCross ? '⚠️ 反串' : '✅ 顺色'} | 风险: ${riskEmoji[r.role.risk]}${riskText[r.role.risk]}\n`;
+    text += `  接受度: 🎭${r.player.acceptCrossGender}/5 💕${r.player.acceptIntimacy}/5 🎪${r.player.acceptTease}/5\n`;
+    if (reasons.length) text += `  ✅ ${reasons.join(' | ')}\n`;
+    if (warns.length) text += `  ⚠️ ${warns.map(w => w.replace('⚠️ ', '')).join(' | ')}\n`;
+    text += `\n`;
+  });
+
+  if (hostConfirmItems.length > 0) {
+    text += `═══════════════════════════════\n`;
+    text += `🎙️ 风险确认记录:\n\n`;
+    hostConfirmItems.forEach((item, idx) => {
+      text += `${idx + 1}. ${item.icon} ${item.title}\n`;
+      text += `   涉及: ${item.players.join(' / ')} → ${item.roleName}\n`;
+      text += `   状态: ${confirmStatus[idx] ? '✅ 已确认' : '❌ 未确认'}\n`;
+      if (confirmNotes[idx]) text += `   备注: ${confirmNotes[idx]}\n`;
+      text += `\n`;
+    });
+  }
+
+  if (unselectedRoles.length > 0) {
+    text += `═══════════════════════════════\n`;
+    text += `📭 未抽中角色: ${unselectedRoles.map(r => r.name).join('、')}\n`;
+  }
+
+  navigator.clipboard.writeText(text).then(() => {
+    showWarning('📋 复制成功！', '复盘文字版已复制到剪贴板，可直接粘贴到群里~');
+  }).catch(() => {
+    showWarning('⚠️ 复制失败', '请手动选择文本复制，或检查浏览器权限。');
+  });
 }
 
 function resetDraw() {
@@ -1272,14 +1634,147 @@ function resetDraw() {
   document.getElementById('hostConfirm').classList.add('hidden');
   document.getElementById('drawIdle').classList.remove('hidden');
   matchResults = [];
+  unselectedRoles = [];
   warnings = [];
   hostConfirmItems = [];
+  confirmStatus = [];
+  confirmNotes = [];
   currentCardIndex = 0;
   document.getElementById('flipCard').classList.remove('flipped');
   document.getElementById('nextCardBtn').textContent = '翻下一张 →';
+  switchResultTab('result');
 }
 
-function showWarning(title, text, extraText = '', allowContinue = false) {
+function saveDrawHistory() {
+  const record = {
+    id: Date.now(),
+    timestamp: new Date().toISOString(),
+    players: JSON.parse(JSON.stringify(players)),
+    roles: JSON.parse(JSON.stringify(roles)),
+    matchResults: JSON.parse(JSON.stringify(matchResults)),
+    unselectedRoles: JSON.parse(JSON.stringify(unselectedRoles)),
+    hostConfirmItems: JSON.parse(JSON.stringify(hostConfirmItems)),
+    confirmStatus: [...confirmStatus],
+    confirmNotes: [...confirmNotes],
+    warnings: JSON.parse(JSON.stringify(warnings))
+  };
+
+  drawHistory.unshift(record);
+  if (drawHistory.length > 10) drawHistory = drawHistory.slice(0, 10);
+
+  try {
+    localStorage.setItem('drawHistory', JSON.stringify(drawHistory));
+  } catch (e) {
+    console.warn('无法保存到localStorage', e);
+  }
+}
+
+function loadDrawHistory() {
+  try {
+    const saved = localStorage.getItem('drawHistory');
+    if (saved) {
+      drawHistory = JSON.parse(saved);
+    }
+  } catch (e) {
+    console.warn('无法读取localStorage', e);
+  }
+}
+
+function renderHistoryView() {
+  const list = document.getElementById('historyList');
+  const empty = document.getElementById('historyEmpty');
+
+  if (drawHistory.length === 0) {
+    list.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+
+  empty.classList.add('hidden');
+  list.innerHTML = drawHistory.map((record, idx) => {
+    const date = new Date(record.timestamp);
+    const dateStr = `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    const playerNames = record.players.map(p => p.name).join('、');
+    const resultCount = record.matchResults.length;
+    const unselectedCount = record.unselectedRoles.length;
+
+    return `
+      <div class="record-card glass p-4" onclick="restoreHistoryRecord(${idx})">
+        <div class="flex justify-between items-start">
+          <div>
+            <div class="font-bold text-lg mb-1">
+              #${drawHistory.length - idx} · ${dateStr}
+            </div>
+            <div class="text-sm text-purple-200 mb-1">
+              👥 ${playerNames}
+            </div>
+            <div class="text-xs text-purple-300">
+              🎴 ${resultCount}个角色已分配 ${unselectedCount > 0 ? `| 📭 ${unselectedCount}个未抽中` : ''}
+              ${record.hostConfirmItems.length > 0 ? `| ⚠️ ${record.hostConfirmItems.length}项风险确认` : ''}
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="event.stopPropagation(); openHistoryPoster(${idx})" class="btn-secondary px-3 py-1.5 rounded-lg text-sm">
+              📸 海报
+            </button>
+            <button onclick="event.stopPropagation(); restoreHistoryRecord(${idx})" class="btn-primary px-3 py-1.5 rounded-lg text-sm">
+              👁️ 查看
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function restoreHistoryRecord(idx) {
+  const record = drawHistory[idx];
+  players = JSON.parse(JSON.stringify(record.players));
+  roles = JSON.parse(JSON.stringify(record.roles));
+  matchResults = JSON.parse(JSON.stringify(record.matchResults));
+  unselectedRoles = JSON.parse(JSON.stringify(record.unselectedRoles));
+  hostConfirmItems = JSON.parse(JSON.stringify(record.hostConfirmItems));
+  confirmStatus = [...record.confirmStatus];
+  confirmNotes = [...record.confirmNotes];
+  warnings = JSON.parse(JSON.stringify(record.warnings));
+
+  renderPlayers();
+  renderRoles();
+  updateStepStatus();
+  proceedToStep3(3);
+  showFinalResults();
+  switchResultTab('result');
+}
+
+function openHistoryPoster(idx) {
+  const record = drawHistory[idx];
+  const tempResults = matchResults;
+  const tempUnselected = unselectedRoles;
+  const tempConfirms = hostConfirmItems;
+
+  matchResults = JSON.parse(JSON.stringify(record.matchResults));
+  unselectedRoles = JSON.parse(JSON.stringify(record.unselectedRoles));
+  hostConfirmItems = JSON.parse(JSON.stringify(record.hostConfirmItems));
+
+  showPosterModal();
+
+  matchResults = tempResults;
+  unselectedRoles = tempUnselected;
+  hostConfirmItems = tempConfirms;
+}
+
+function clearAllHistory() {
+  if (confirm('确定要清空所有抽签记录吗？此操作不可撤销。')) {
+    drawHistory = [];
+    try {
+      localStorage.removeItem('drawHistory');
+    } catch (e) {}
+    renderHistoryView();
+    showWarning('已清空', '所有抽签记录已删除~');
+  }
+}
+
+function showWarning(title, text, extraText = '', allowContinue = false, onConfirm = null) {
   document.getElementById('warningTitle').textContent = title;
   let fullText = text;
   if (extraText) fullText += '\n\n' + extraText;
@@ -1291,21 +1786,11 @@ function showWarning(title, text, extraText = '', allowContinue = false) {
       document.querySelector('#warningModal button').textContent = '继续抽卡';
       document.querySelector('#warningModal button').onclick = () => {
         closeWarning();
-        document.getElementById('section-players').classList.add('hidden');
-        document.getElementById('section-roles').classList.add('hidden');
-        document.getElementById('section-result').classList.remove('hidden');
-        const steps = ['step-1', 'step-2', 'step-3'];
-        steps.forEach((id, i) => {
-          const el = document.getElementById(id);
-          if (i === 2) {
-            el.className = 'step-indicator step-active w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg';
-          } else if (i < 2) {
-            el.className = 'step-indicator step-done w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg';
-          } else {
-            el.className = 'step-indicator step-pending w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg';
-          }
-        });
-        document.getElementById('matchInfo').textContent = `🎭 ${players.length} 位戏精 VS 🎴 ${roles.length} 个角色，命运即将揭晓...`;
+        if (onConfirm) {
+          onConfirm();
+        } else {
+          proceedToStep3();
+        }
       };
     }, 100);
   }
@@ -1346,6 +1831,19 @@ function renderPoster(type) {
             ${i + 1}. ${w.icon} <b>${w.title}</b>：${w.desc}
           </div>
         `).join('')}
+      </div>
+    `;
+  }
+
+  let unselectedHTML = '';
+  if (isHost && unselectedRoles.length > 0) {
+    unselectedHTML = `
+      <div style="background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.4);
+        border-radius: 16px; padding: 16px; margin-bottom: 24px; text-align: left;">
+        <div style="font-size: 18px; color: #c4b5fd; margin-bottom: 12px;">📭 未抽中角色 (${unselectedRoles.length}个)</div>
+        <div style="font-size: 13px; color: #a78bfa; line-height: 1.8;">
+          ${unselectedRoles.map(r => `${genderEmoji[r.gender]} ${r.name}（${roleGenderText[r.gender]}）`).join(' · ')}
+        </div>
       </div>
     `;
   }
@@ -1417,6 +1915,7 @@ function renderPoster(type) {
         }).join('')}
       </div>
 
+      ${unselectedHTML}
       ${warningsHTML}
       ${reminderHTML}
 
@@ -1448,6 +1947,7 @@ function closePoster() {
 
 renderPlayers();
 renderRoles();
+loadDrawHistory();
 </script>
 
 </body>
