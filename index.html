@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>反串排位抽签台 🎭</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Ma+Shan+Zheng&display=swap');
+
+  :root {
+    --gold: #f59e0b;
+    --pink: #ec4899;
+    --purple: #8b5cf6;
+    --dark: #1e1b4b;
+  }
+
+  body {
+    font-family: 'ZCOOL KuaiLe', sans-serif;
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #581c87 100%);
+    min-height: 100vh;
+    color: #fff;
+    overflow-x: hidden;
+  }
+
+  .title-font {
+    font-family: 'Ma Shan Zheng', cursive;
+  }
+
+  .glass {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #f59e0b 0%, #ec4899 100%);
+    box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
+    transition: all 0.3s ease;
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 30px rgba(245, 158, 11, 0.6);
+  }
+
+  .btn-secondary {
+    background: rgba(139, 92, 246, 0.3);
+    border: 2px solid rgba(139, 92, 246, 0.6);
+    transition: all 0.3s ease;
+  }
+
+  .btn-secondary:hover {
+    background: rgba(139, 92, 246, 0.5);
+    transform: translateY(-1px);
+  }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+  }
+
+  .tag-inactive {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .tag:hover {
+    transform: scale(1.05);
+  }
+
+  .tag-1 { background: rgba(245, 158, 11, 0.3); border: 1px solid #f59e0b; }
+  .tag-2 { background: rgba(236, 72, 153, 0.3); border: 1px solid #ec4899; }
+  .tag-3 { background: rgba(139, 92, 246, 0.3); border: 1px solid #8b5cf6; }
+  .tag-4 { background: rgba(34, 197, 94, 0.3); border: 1px solid #22c55e; }
+  .tag-5 { background: rgba(59, 130, 246, 0.3); border: 1px solid #3b82f6; }
+  .tag-6 { background: rgba(239, 68, 68, 0.3); border: 1px solid #ef4444; }
+
+  .player-card, .role-card {
+    background: rgba(255, 255, 255, 0.08);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 16px;
+    transition: all 0.3s ease;
+  }
+
+  .player-card:hover, .role-card:hover {
+    border-color: rgba(245, 158, 11, 0.6);
+    transform: translateY(-2px);
+  }
+
+  .card-flip-container {
+    perspective: 1000px;
+    width: 220px;
+    height: 300px;
+  }
+
+  .card-flip {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-style: preserve-3d;
+  }
+
+  .card-flip.flipped {
+    transform: rotateY(180deg);
+  }
+
+  .card-face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    border-radius: 20px;
+    overflow: hidden;
+  }
+
+  .card-back {
+    background: linear-gradient(135deg, #7c3aed 0%, #db2777 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid rgba(245, 158, 11, 0.6);
+    box-shadow: 0 10px 40px rgba(139, 92, 246, 0.4);
+  }
+
+  .card-front {
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+    transform: rotateY(180deg);
+    border: 3px solid rgba(245, 158, 11, 0.6);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sparkle {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: #f59e0b;
+    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+    animation: sparkle 2s ease-in-out infinite;
+  }
+
+  @keyframes sparkle {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.5); }
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+
+  .floating { animation: float 3s ease-in-out infinite; }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+  }
+
+  .shake { animation: shake 0.5s ease-in-out; }
+
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.4); }
+    50% { box-shadow: 0 0 40px rgba(245, 158, 11, 0.8); }
+  }
+
+  .pulse-glow { animation: pulse-glow 1.5s ease-in-out infinite; }
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .poster-container {
+    background: linear-gradient(135deg, #1e1b4b 0%, #581c87 100%);
+    padding: 40px;
+    width: 700px;
+    max-width: 95vw;
+  }
+
+  select, input {
+    font-family: inherit;
+  }
+
+  input:focus, select:focus {
+    outline: none;
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+  }
+
+  .step-indicator {
+    transition: all 0.3s ease;
+  }
+
+  .step-active {
+    background: linear-gradient(135deg, #f59e0b 0%, #ec4899 100%);
+    color: white;
+    transform: scale(1.1);
+  }
+
+  .step-done {
+    background: rgba(34, 197, 94, 0.3);
+    border: 2px solid #22c55e;
+  }
+
+  .step-pending {
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+  }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: rgba(255,255,255,0.1); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb { background: rgba(245, 158, 11, 0.5); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(245, 158, 11, 0.8); }
+</style>
+</head>
+<body>
+
+<div class="max-w-6xl mx-auto px-4 py-8">
+
+  <header class="text-center mb-10">
+    <h1 class="title-font text-5xl md:text-6xl mb-3 bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-400 bg-clip-text text-transparent">
+      🎭 反串排位抽签台
+    </h1>
+    <p class="text-lg text-purple-200 opacity-80">熟人欢乐本专用 · 戏精的天堂</p>
+  </header>
+
+  <div class="flex justify-center gap-4 mb-10">
+    <div id="step-1" class="step-indicator step-active w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg">1</div>
+    <div class="flex items-center"><div class="w-16 h-1 bg-white/20"></div></div>
+    <div id="step-2" class="step-indicator step-pending w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg">2</div>
+    <div class="flex items-center"><div class="w-16 h-1 bg-white/20"></div></div>
+    <div id="step-3" class="step-indicator step-pending w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg">3</div>
+  </div>
+
+  <div id="step-labels" class="flex justify-center gap-8 mb-10 text-sm text-purple-200">
+    <span>录入玩家</span>
+    <span class="ml-8">角色卡池</span>
+    <span class="ml-8">开奖结果</span>
+  </div>
+
+  <section id="section-players" class="mb-10">
+    <div class="glass p-6 md:p-8">
+      <h2 class="text-2xl mb-6 flex items-center gap-3">
+        <span class="text-3xl">👥</span>
+        <span class="title-font text-3xl">录入玩家</span>
+      </h2>
+
+      <div class="glass p-5 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-sm text-purple-200 mb-2">玩家昵称</label>
+            <input id="playerName" type="text" placeholder="输入昵称..." 
+              class="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40">
+          </div>
+          <div>
+            <label class="block text-sm text-purple-200 mb-2">性别 (决定反串适配)</label>
+            <select id="playerGender" class="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white">
+              <option value="male">♂ 男玩家</option>
+              <option value="female">♀ 女玩家</option>
+              <option value="other">⚧ 无所谓</option>
+            </select>
+          </div>
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm text-purple-200 mb-2">个性标签 (点击选择)</label>
+          <div id="playerTags" class="flex flex-wrap gap-2">
+            <span class="tag tag-inactive" data-tag="戏精" data-color="1">🎭 戏精</span>
+            <span class="tag tag-inactive" data-tag="社恐" data-color="2">😰 社恐</span>
+            <span class="tag tag-inactive" data-tag="能整活" data-color="3">🔥 能整活</span>
+            <span class="tag tag-inactive" data-tag="拒绝亲密线" data-color="4">🙅 拒绝亲密线</span>
+            <span class="tag tag-inactive" data-tag="老骗子" data-color="5">🎯 老骗子</span>
+            <span class="tag tag-inactive" data-tag="情感喷泉" data-color="6">💧 情感喷泉</span>
+            <span class="tag tag-inactive" data-tag="气氛组" data-color="1">🎉 气氛组</span>
+            <span class="tag tag-inactive" data-tag="推土机" data-color="2">🧠 推土机</span>
+          </div>
+        </div>
+        <button onclick="addPlayer()" class="btn-primary px-6 py-3 rounded-xl font-bold text-lg w-full md:w-auto">
+          ➕ 添加玩家
+        </button>
+      </div>
+
+      <div id="playersList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      </div>
+
+      <div id="playersEmpty" class="text-center py-12 text-purple-200 opacity-60">
+        <div class="text-5xl mb-3">🎪</div>
+        <p>还没有玩家，快添加几个戏精朋友吧~</p>
+      </div>
+    </div>
+
+    <div class="flex justify-end mt-6">
+      <button onclick="goToStep(2)" class="btn-primary px-8 py-3 rounded-xl font-bold text-lg">
+        下一步：配置角色 →
+      </button>
+    </div>
+  </section>
+
+  <section id="section-roles" class="mb-10 hidden">
+    <div class="glass p-6 md:p-8">
+      <h2 class="text-2xl mb-6 flex items-center gap-3">
+        <span class="text-3xl">🎴</span>
+        <span class="title-font text-3xl">角色卡池</span>
+      </h2>
+
+      <div class="glass p-5 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-sm text-purple-200 mb-2">角色名</label>
+            <input id="roleName" type="text" placeholder="例如：林诗音"
+              class="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40">
+          </div>
+          <div>
+            <label class="block text-sm text-purple-200 mb-2">角色性别</label>
+            <select id="roleGender" class="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white">
+              <option value="male">♂ 男性角色</option>
+              <option value="female">♀ 女性角色</option>
+              <option value="other">⚧ 中性/神秘</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-sm text-purple-200 mb-2">角色关系（用逗号分隔，如"情侣、师徒、仇敌")</label>
+            <input id="roleRelations" type="text" placeholder="例如：主角CP、神秘师父"
+              class="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40">
+          </div>
+          <div>
+            <label class="block text-sm text-purple-200 mb-2">推荐气质</label>
+            <select id="roleTemperament" class="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white">
+              <option value="戏精">🎭 戏精型</option>
+              <option value="沉稳">🧘 沉稳型</option>
+              <option value="活泼">🎉 活泼型</option>
+              <option value="高冷">❄️ 高冷型</option>
+              <option value="搞笑">🤡 搞笑型</option>
+              <option value="情感">💧 情感型</option>
+              <option value="推理">🧠 推理型</option>
+              <option value="气氛">🔥 气氛组</option>
+            </select>
+          </div>
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm text-purple-200 mb-2">亲密线强度（有CP/感情线的角色标记一下）</label>
+          <div class="flex gap-3">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="intimacy" value="none" checked class="w-4 h-4"> <span>无亲密线</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="intimacy" value="light" class="w-4 h-4"> <span>轻度暧昧</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="intimacy" value="heavy" class="w-4 h-4"> <span>浓情CP</span>
+            </label>
+          </div>
+        </div>
+        <button onclick="addRole()" class="btn-primary px-6 py-3 rounded-xl font-bold text-lg w-full md:w-auto">
+          ➕ 添加角色
+        </button>
+      </div>
+
+      <div id="rolesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      </div>
+
+      <div id="rolesEmpty" class="text-center py-12 text-purple-200 opacity-60">
+        <div class="text-5xl mb-3">📜</div>
+        <p>卡池空空如也，先加几个角色吧~</p>
+      </div>
+    </div>
+
+    <div class="flex justify-between mt-6">
+      <button onclick="goToStep(1)" class="btn-secondary px-8 py-3 rounded-xl font-bold">
+        ← 返回
+      </button>
+      <button onclick="goToStep(3)" class="btn-primary px-8 py-3 rounded-xl font-bold text-lg">
+        下一步：开始抽卡 →
+      </button>
+    </div>
+  </section>
+
+  <section id="section-result" class="mb-10 hidden">
+    <div class="glass p-6 md:p-8">
+      <h2 class="text-2xl mb-6 flex items-center gap-3">
+      </h2>
+
+      <div id="drawArea" class="text-center py-8">
+        <div id="drawIdle" class="py-16">
+          <div class="text-7xl mb-6 floating">🎰</div>
+          <p class="text-xl text-purple-200 mb-6">准备好见证命运的安排了吗？</p>
+          <p id="matchInfo" class="text-sm text-purple-300 opacity-70 mb-8"></p>
+          <button onclick="startDraw()" class="btn-primary px-10 py-4 rounded-2xl font-bold text-2xl pulse-glow">
+            ✨ 开始抽签 ✨
+          </button>
+        </div>
+
+        <div id="drawProgress" class="hidden">
+          <div id="currentCard" class="flex justify-center mb-8">
+            <div class="card-flip-container">
+              <div id="flipCard" class="card-flip">
+                <div class="card-face card-back">
+                  <div class="text-center">
+                    <div class="text-8xl mb-4">🎴</div>
+                    <div class="title-font text-2xl">命运之卡</div>
+                    <div class="sparkle" style="top: 20%; left: 20%; animation-delay: 0s;"></div>
+                    <div class="sparkle" style="top: 30%; right: 15%; animation-delay: 0.5s;"></div>
+                    <div class="sparkle" style="bottom: 25%; left: 30%; animation-delay: 1s;"></div>
+                    <div class="sparkle" style="bottom: 20%; right: 25%; animation-delay: 1.5s;"></div>
+                  </div>
+                </div>
+                <div class="card-face card-front">
+                  <div id="cardContent" class="flex-1 flex flex-col items-center justify-center text-center">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p id="drawHint" class="text-purple-200 text-lg mb-4"></p>
+          <button id="nextCardBtn" onclick="flipNextCard()" class="btn-primary px-8 py-3 rounded-xl font-bold text-lg hidden">
+            翻下一张 →
+          </button>
+        </div>
+
+        <div id="drawDone" class="hidden">
+          <div class="text-6xl mb-6">🎉</div>
+          <h3 class="title-font text-4xl mb-6 bg-gradient-to-r from-yellow-400 to-pink-500 bg-clip-text text-transparent">
+            抽签完成！
+          </h3>
+          <p class="text-purple-200 mb-8">命运已做出了它的选择~</p>
+          <div id="finalResults" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 text-left max-w-3xl mx-auto">
+          </div>
+          <div class="flex flex-wrap justify-center gap-4">
+            <button onclick="resetDraw()" class="btn-secondary px-8 py-3 rounded-xl font-bold">
+              🔄 重新抽卡
+            </button>
+            <button onclick="showPoster()" class="btn-primary px-8 py-3 rounded-xl font-bold">
+              📸 生成包间海报
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex justify-start mt-6">
+      <button onclick="goToStep(2)" class="btn-secondary px-8 py-3 rounded-xl font-bold">
+        ← 返回配置
+      </button>
+    </div>
+  </section>
+
+</div>
+
+<div id="warningModal" class="modal-overlay hidden">
+  <div class="glass p-8 max-w-md mx-4 text-center">
+    <div class="text-6xl mb-4">⚠️</div>
+    <h3 id="warningTitle" class="title-font text-3xl mb-4"></h3>
+    <p id="warningText" class="text-purple-200 text-lg mb-6"></p>
+    <button onclick="closeWarning()" class="btn-primary px-8 py-3 rounded-xl font-bold text-lg">
+      我知道了
+    </button>
+  </div>
+</div>
+
+<div id="posterModal" class="modal-overlay hidden">
+  <div class="max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
+    <div id="posterContent" class="poster-container rounded-3xl border-4 border-yellow-500/50">
+    </div>
+    <div class="flex justify-center gap-4 mt-6">
+      <button onclick="downloadPoster()" class="btn-primary px-8 py-3 rounded-xl font-bold text-lg">
+        💾 保存海报
+      </button>
+      <button onclick="closePoster()" class="btn-secondary px-8 py-3 rounded-xl font-bold">
+        关闭
+      </button>
+    </div>
+  </div>
+  </div>
+
+<script>
+
+let players = [];
+let roles = [];
+let selectedPlayerTags = new Set();
+let matchResults = [];
+let currentCardIndex = 0;
+let warnings = [];
+
+const tagColors = {
+  '戏精': 1, '社恐': 2, '能整活': 3, '拒绝亲密线': 4,
+  '老骗子': 5, '情感喷泉': 6, '气氛组': 1, '推土机': 2
+};
+
+const genderEmoji = { male: '♂', female: '♀', other: '⚧' };
+const genderText = { male: '男', female: '女', other: '不限' };
+const roleGenderText = { male: '男性角色', female: '女性角色', other: '神秘角色' };
+
+document.querySelectorAll('#playerTags .tag').forEach(tag => {
+  tag.addEventListener('click', () => {
+    const tagName = tag.dataset.tag;
+    if (selectedPlayerTags.has(tagName)) {
+      selectedPlayerTags.delete(tagName);
+      tag.classList.remove('tag-' + tag.dataset.color);
+      tag.classList.add('tag-inactive');
+    } else {
+      selectedPlayerTags.add(tagName);
+      tag.classList.add('tag-' + tag.dataset.color);
+      tag.classList.remove('tag-inactive');
+    }
+  });
+});
+
+function addPlayer() {
+  const name = document.getElementById('playerName').value.trim();
+  const gender = document.getElementById('playerGender').value;
+  if (!name) {
+    showWarning('名字呢？', '戏精也得有个艺名吧？', '快填个昵称嘛~');
+    return;
+  }
+  if (players.some(p => p.name === name)) {
+    showWarning('重名啦', '这位戏精已经在名单里了', '换个名字或者加个后缀？');
+    return;
+  }
+  players.push({
+    name, gender,
+    tags: [...selectedPlayerTags]
+  });
+  document.getElementById('playerName').value = '';
+  selectedPlayerTags.clear();
+  document.querySelectorAll('#playerTags .tag').forEach(tag => {
+    tag.classList.remove('tag-' + tag.dataset.color);
+    tag.classList.add('tag-inactive');
+  });
+  renderPlayers();
+  updateStepStatus();
+}
+
+function removePlayer(index) {
+  players.splice(index, 1);
+  renderPlayers();
+  updateStepStatus();
+}
+
+function renderPlayers() {
+  const list = document.getElementById('playersList');
+  const empty = document.getElementById('playersEmpty');
+  if (players.length === 0) {
+    list.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  list.innerHTML = players.map((p, i) => `
+    <div class="player-card">
+      <div class="flex justify-between items-start mb-3">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-2xl">${genderEmoji[p.gender]}</span>
+            <span class="text-xl font-bold">${p.name}</span>
+          </div>
+          <span class="text-xs text-purple-300">${genderText[p.gender]}玩家</span>
+        </div>
+        <button onclick="removePlayer(${i})" class="text-red-400 hover:text-red-300 text-xl">✕</button>
+      </div>
+      <div class="flex flex-wrap gap-1">
+        ${p.tags.length ? p.tags.map(t => `<span class="tag tag-${tagColors[t]} text-xs">${t}</span>`).join('') : '<span class="text-xs text-purple-300/60">无标签</span>'}
+      </div>
+    </div>
+  `).join('');
+}
+
+function addRole() {
+  const name = document.getElementById('roleName').value.trim();
+  const gender = document.getElementById('roleGender').value;
+  const relations = document.getElementById('roleRelations').value.trim();
+  const temperament = document.getElementById('roleTemperament').value;
+  const intimacy = document.querySelector('input[name="intimacy"]:checked').value;
+  if (!name) {
+    showWarning('角色名呢？', '连名字都没有怎么混江湖？', '给角色起个响亮的名号吧~');
+    return;
+  }
+  if (roles.some(r => r.name === name)) {
+    showWarning('重名角色', '这个角色已经在卡池里了', '是双胞胎吗？换个名字？');
+    return;
+  }
+  roles.push({ name, gender, relations: relations ? relations.split(/[,，]/).map(s => s.trim()).filter(Boolean) : [], temperament, intimacy });
+  document.getElementById('roleName').value = '';
+  document.getElementById('roleRelations').value = '';
+  document.getElementById('roleRelations').value = '';
+  renderRoles();
+  updateStepStatus();
+}
+
+function removeRole(index) {
+  roles.splice(index, 1);
+  renderRoles();
+  updateStepStatus();
+}
+
+const intimacyText = { none: '无亲密线', light: '轻度暧昧', heavy: '浓情CP' };
+const intimacyEmoji = { none: '💬', light: '💕', heavy: '❤️‍🔥' };
+
+function renderRoles() {
+  const list = document.getElementById('rolesList');
+  const empty = document.getElementById('rolesEmpty');
+  if (roles.length === 0) {
+    list.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  list.innerHTML = roles.map((r, i) => `
+    <div class="role-card">
+      <div class="flex justify-between items-start mb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">${genderEmoji[r.gender]}</span>
+          <span class="text-xl font-bold">${r.name}</span>
+        </div>
+        <button onclick="removeRole(${i})" class="text-red-400 hover:text-red-300 text-xl">✕</button>
+      </div>
+      <div class="text-sm text-purple-200 mb-2">
+        <span class="mr-3">${roleGenderText[r.gender]}</span>
+        <span>${intimacyEmoji[r.intimacy]} ${intimacyText[r.intimacy]}</span>
+      </div>
+      <div class="text-sm text-purple-200 mb-2">🧩 推荐气质：${r.temperament}</div>
+      ${r.relations.length ? `<div class="flex flex-wrap gap-1">${r.relations.map(rel => `<span class="tag tag-3 text-xs">${rel}</span>`).join('')}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function updateStepStatus() {
+  const s1 = document.getElementById('step-1');
+  const s2 = document.getElementById('step-2');
+  const s3 = document.getElementById('step-3');
+  s1.className = 'step-indicator w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg step-done';
+  if (players.length > 0) {
+    s2.className = 'step-indicator w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg step-done';
+  } else {
+    s2.className = 'step-indicator w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg step-pending';
+  }
+  if (roles.length > 0 && players.length > 0) {
+    s3.className = 'step-indicator w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg step-done';
+  } else {
+    s3.className = 'step-indicator w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg step-pending';
+  }
+}
+
+function goToStep(step) {
+  if (step === 2 && players.length < 2) {
+    showWarning('人不够啊', '至少得有两个戏精才能开演', '先添加玩家吧~一个人玩多寂寞啊');
+    return;
+  }
+  if (step === 3 && roles.length < players.length) {
+    showWarning('角色不够啊', `需要至少 ${players.length} 个角色，现在只有 ${roles.length} 个`, '凑够角色再来抽卡~');
+    return;
+  }
+  if (step === 3 && roles.length > players.length) {
+    showWarning('角色有点多', `有 ${roles.length} 个角色但只有 ${players.length} 个玩家`, '多出来的角色会被打入冷宫哦，确定继续吗？', true);
+  }
+  document.getElementById('section-players').classList.toggle('hidden', step !== 1);
+  document.getElementById('section-roles').classList.toggle('hidden', step !== 2);
+  document.getElementById('section-result').classList.toggle('hidden', step !== 3);
+  const steps = ['step-1', 'step-2', 'step-3'];
+  steps.forEach((id, i) => {
+    const el = document.getElementById(id);
+    if (i + 1 === step) {
+      el.className = 'step-indicator step-active w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg';
+    } else if (i + 1 < step) {
+      el.className = 'step-indicator step-done w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg';
+    } else {
+      el.className = 'step-indicator step-pending w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg';
+    }
+  });
+  if (step === 3) {
+    document.getElementById('matchInfo').textContent = `🎭 ${players.length} 位戏精 VS 🎴 ${roles.length} 个角色，命运即将揭晓...`;
+  }
+}
+
+function calculateMatchScore(player, role) {
+  let score = Math.random() * 20;
+  const isCrossGender = player.gender !== 'other' && role.gender !== 'other' && player.gender !== role.gender;
+  if (isCrossGender) {
+    if (player.tags.includes('戏精') || player.tags.includes('能整活')) {
+      score += 30;
+    } else if (player.tags.includes('社恐')) {
+      score -= 30;
+    } else {
+      score -= 10;
+    }
+  } else {
+    score += 15;
+  }
+  const temperamentMatch = {
+    '戏精': ['戏精', '能整活', '气氛组'],
+    '沉稳': ['社恐', '推土机'],
+    '活泼': ['能整活', '气氛组', '戏精'],
+    '高冷': ['社恐', '推土机'],
+    '搞笑': ['能整活', '戏精', '气氛组'],
+    '情感': ['情感喷泉', '戏精'],
+    '推理': ['推土机', '老骗子'],
+    '气氛': ['气氛组', '能整活', '戏精']
+  };
+  if (temperamentMatch[role.temperament]?.some(t => player.tags.includes(t))) {
+    score += 25;
+  }
+  if (role.intimacy === 'heavy' && player.tags.includes('拒绝亲密线')) {
+    score -= 50;
+  } else if (role.intimacy === 'light' && player.tags.includes('拒绝亲密线')) {
+    score -= 20;
+  }
+  if (role.intimacy !== 'none' && (player.tags.includes('戏精') || player.tags.includes('情感喷泉'))) {
+    score += 10;
+  }
+  return score;
+}
+
+function smartMatch() {
+  const shuffledRoles = [...roles].sort(() => Math.random() - 0.5).slice(0, players.length);
+  const results = [];
+  const usedPlayers = new Set();
+  const usedRoles = new Set();
+  const sortedPairs = [];
+
+  for (let i = 0; i < players.length; i++) {
+    for (let j = 0; j < shuffledRoles.length; j++) {
+      sortedPairs.push({
+        playerIdx: i, roleIdx: j, score: calculateMatchScore(players[i], shuffledRoles[j])
+      });
+    }
+  }
+  sortedPairs.sort((a, b) => b.score - a.score);
+  for (const pair of sortedPairs) {
+    if (usedPlayers.has(pair.playerIdx) || usedRoles.has(pair.roleIdx)) {
+      continue;
+    }
+    usedPlayers.add(pair.playerIdx);
+    usedRoles.add(pair.roleIdx);
+    results.push({
+      player: players[pair.playerIdx],
+      role: shuffledRoles[pair.roleIdx],
+      score: pair.score
+    });
+    if (results.length === players.length) break;
+  }
+  while (results.length < players.length) {
+    for (let i = 0; i < players.length; i++) {
+      if (!usedPlayers.has(i)) {
+        for (let j = 0; j < shuffledRoles.length; j++) {
+          if (!usedRoles.has(j)) {
+            usedPlayers.add(i);
+            usedRoles.add(j);
+            results.push({
+              player: players[i],
+              role: shuffledRoles[j],
+              score: calculateMatchScore(players[i], shuffledRoles[j])
+            });
+            break;
+          }
+        }
+      }
+    }
+  }
+  return results;
+}
+
+function checkWarnings(results) {
+  const warns = [];
+  const cpPairs = [];
+  for (let i = 0; i < results.length; i++) {
+    for (let j = i + 1; j < results.length; j++) {
+      const a = results[i], b = results[j];
+      const aRels = a.role.relations.map(r => r.replace(/[情侣CP]/g, '').toLowerCase());
+      const bRels = b.role.relations.map(r => r.replace(/[情侣CP]/g, '').toLowerCase());
+      const aHasCPTag = a.role.relations.some(r => r.includes('情侣') || r.includes('CP'));
+      const bHasCPTag = b.role.relations.some(r => r.includes('情侣') || r.includes('CP'));
+      const aRefersToB = aRels.some(r => r.includes(b.role.name.toLowerCase()));
+      const bRefersToA = bRels.some(r => r.includes(a.role.name.toLowerCase()));
+      if ((aHasCPTag && bHasCPTag) || aRefersToB || bRefersToA) {
+        cpPairs.push([a, b]);
+      }
+    }
+  }
+  for (const [a, b] of cpPairs) {
+    const aRefuse = a.player.tags.includes('拒绝亲密线');
+    const bRefuse = b.player.tags.includes('拒绝亲密线');
+    const crossGender = (a.player.gender !== 'other' && b.player.gender !== 'other' && a.player.gender === b.player.gender);
+    if (aRefuse || bRefuse) {
+      warns.push({
+        title: '🚨 CP警报！',
+        text: `${a.player.name} 和 ${b.player.name} 分到了 ${a.role.name} & ${b.role.name} 这对CP，但其中有人标了「拒绝亲密线」！请双方确认是否OK！`
+      });
+    } else if (crossGender) {
+      warns.push({
+        title: '🌈 这对CP需要双方确认',
+        text: `${a.player.name} 和 ${b.player.name} 是同性玩家分到了CP角色 ${a.role.name} & ${b.role.name}！请两位确认一下可以接受这个组合~`
+      });
+    }
+  }
+  for (const r of results) {
+    const isCross = r.player.gender !== 'other' && r.role.gender !== 'other' && r.player.gender !== r.role.gender;
+    if (isCross && r.player.tags.includes('社恐')) {
+      warns.push({
+        title: '😰 社恐反串预警',
+        text: `${r.player.name} (社恐) 要反串 ${r.role.name}！请多关照一下这位社恐朋友，别让TA太尴尬~`
+      });
+    }
+  }
+  return warns;
+}
+
+function startDraw() {
+  matchResults = smartMatch();
+  warnings = checkWarnings(matchResults);
+  currentCardIndex = 0;
+  document.getElementById('drawIdle').classList.add('hidden');
+  document.getElementById('drawProgress').classList.remove('hidden');
+  document.getElementById('flipCard').classList.remove('flipped');
+  setTimeout(() => {
+    showCard(0);
+  }, 300);
+}
+
+function showCard(index) {
+  const result = matchResults[index];
+  const isCross = result.player.gender !== 'other' && result.role.gender !== 'other' && result.player.gender !== result.role.gender;
+  const crossTag = isCross ? '⚠️ 反串' : '✅ 顺色';
+  const crossClass = isCross ? 'bg-pink-500/30 border-pink-500' : 'bg-green-500/30 border-green-500';
+  document.getElementById('cardContent').innerHTML = `
+    <div class="w-16 h-16 rounded-full bg-gradient-to-br from-yellow-400 to-pink-500 flex items-center justify-center text-3xl mb-3 pulse-glow">
+      ${genderEmoji[result.role.gender]}
+    </div>
+    <div class="title-font text-2xl mb-1">${result.role.name}</div>
+    <div class="text-sm text-purple-200 mb-3">${roleGenderText[result.role.gender]}</div>
+    <div class="text-xs px-3 py-1 rounded-full border ${crossClass} mb-3">${crossTag}</div>
+    <div class="mt-2 border-t border-white/10 pt-3 w-full">
+      <div class="text-sm text-purple-200 mb-1">获得者</div>
+      <div class="text-xl font-bold">${result.player.name}</div>
+      <div class="text-xs text-purple-300">${genderText[result.player.gender]}玩家</div>
+    </div>
+    ${result.player.tags.length ? `<div class="flex flex-wrap justify-center gap-1 mt-2">${result.player.tags.map(t => `<span class="tag tag-${tagColors[t]} text-xs">${t}</span>`).join('')}</div>` : ''}
+  `;
+  document.getElementById('drawHint').textContent = `第 ${index + 1} / ${matchResults.length} 张`;
+  if (index < matchResults.length - 1) {
+    document.getElementById('nextCardBtn').classList.remove('hidden');
+  } else {
+    document.getElementById('nextCardBtn').textContent = '🎉 查看最终结果';
+    document.getElementById('nextCardBtn').classList.remove('hidden');
+  }
+}
+
+function flipNextCard() {
+  const card = document.getElementById('flipCard');
+  if (card.classList.contains('flipped')) {
+    card.classList.remove('flipped');
+    setTimeout(() => {
+      currentCardIndex++;
+      if (currentCardIndex >= matchResults.length) {
+        finishDraw();
+      } else {
+        showCard(currentCardIndex);
+        setTimeout(() => {
+          card.classList.add('flipped');
+        }, 200);
+      }
+    }, 400);
+  } else {
+    card.classList.add('flipped');
+    if (currentCardIndex === matchResults.length - 1) {
+      document.getElementById('nextCardBtn').textContent = '🎉 完成';
+    }
+  }
+}
+
+function finishDraw() {
+  document.getElementById('drawProgress').classList.add('hidden');
+  document.getElementById('drawDone').classList.remove('hidden');
+  const container = document.getElementById('finalResults');
+  container.innerHTML = matchResults.map(r => {
+    const isCross = r.player.gender !== 'other' && r.role.gender !== 'other' && r.player.gender !== r.role.gender;
+    return `
+      <div class="player-card">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-pink-500 flex items-center justify-center text-xl">
+            ${genderEmoji[r.role.gender]}
+          </div>
+          <div class="flex-1">
+            <div class="font-bold text-lg">${r.role.name}</div>
+            <div class="text-xs text-purple-300">${roleGenderText[r.role.gender]}${isCross ? ' · ⚠️ 反串' : ''}</div>
+          </div>
+        </div>
+        <div class="text-sm text-purple-200 mt-2 pt-2 border-t border-white/10">
+          👤 ${r.player.name}
+          ${r.player.tags.length ? ' · ' + r.player.tags.join(' / ') : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+  if (warnings.length > 0) {
+    setTimeout(() => showWarning(warnings[0].title, warnings[0].text, warnings.slice(1).map(w => `${w.title}\n${w.text}`).join('\n\n')), 500);
+  }
+}
+
+function resetDraw() {
+  document.getElementById('drawDone').classList.add('hidden');
+  document.getElementById('drawIdle').classList.remove('hidden');
+  matchResults = [];
+  warnings = [];
+  currentCardIndex = 0;
+  document.getElementById('flipCard').classList.remove('flipped');
+  document.getElementById('nextCardBtn').textContent = '翻下一张 →';
+}
+
+function showWarning(title, text, extraText = '', allowContinue = false) {
+  document.getElementById('warningTitle').textContent = title;
+  let fullText = text;
+  if (extraText) fullText += '\n\n' + extraText;
+  document.getElementById('warningText').textContent = fullText;
+  document.getElementById('warningText').style.whiteSpace = 'pre-line';
+  document.getElementById('warningModal').classList.remove('hidden');
+  if (allowContinue) {
+    setTimeout(() => {
+      document.querySelector('#warningModal button').textContent = '继续抽卡';
+      document.querySelector('#warningModal button').onclick = () => {
+        closeWarning();
+        document.getElementById('section-players').classList.add('hidden');
+        document.getElementById('section-roles').classList.add('hidden');
+        document.getElementById('section-result').classList.remove('hidden');
+        const steps = ['step-1', 'step-2', 'step-3'];
+        steps.forEach((id, i) => {
+          const el = document.getElementById(id);
+          if (i === 2) {
+            el.className = 'step-indicator step-active w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg';
+          } else if (i < 2) {
+            el.className = 'step-indicator step-done w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg';
+          } else {
+            el.className = 'step-indicator step-pending w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg';
+          }
+        });
+        document.getElementById('matchInfo').textContent = `🎭 ${players.length} 位戏精 VS 🎴 ${roles.length} 个角色，命运即将揭晓...`;
+      };
+    }, 100);
+  }
+}
+
+function closeWarning() {
+  document.getElementById('warningModal').classList.add('hidden');
+  document.querySelector('#warningModal button').textContent = '我知道了';
+  document.querySelector('#warningModal button').onclick = closeWarning;
+}
+
+function showPoster() {
+  const today = new Date();
+  const dateStr = `${today.getFullYear()}.${String(today.getMonth() + 1).padStart(2, '0')}.${String(today.getDate()).padStart(2, '0')}`;
+  const posterHTML = `
+    <div style="text-align: center;">
+      <div style="font-family: 'Ma Shan Zheng', cursive; font-size: 48px; margin-bottom: 8px;
+        background: linear-gradient(135deg, #f59e0b, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+        🎭 反串排位抽签结果
+      </div>
+      <div style="color: #c4b5fd; font-size: 18px; margin-bottom: 32px;">
+        ${dateStr} · 熟人欢乐本专用
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 32px;">
+        ${matchResults.map(r => {
+          const isCross = r.player.gender !== 'other' && r.role.gender !== 'other' && r.player.gender !== r.role.gender;
+          return `
+            <div style="background: rgba(255,255,255,0.08); border: 2px solid rgba(245, 158, 11, 0.4);
+              border-radius: 16px; padding: 16px; text-align: left;">
+              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                <div style="width: 48px; height: 48px; border-radius: 50%;
+                  background: linear-gradient(135deg, #f59e0b, #ec4899);
+                  display: flex; align-items: center; justify-content: center; font-size: 24px;">
+                  ${genderEmoji[r.role.gender]}
+                </div>
+                <div>
+                  <div style="font-weight: bold; font-size: 20px; color: #fff;">${r.role.name}</div>
+                  <div style="font-size: 12px; color: #c4b5fd;">
+                    ${roleGenderText[r.role.gender]}
+                    ${isCross ? ' · ⚠️ 反串' : ''}
+                  </div>
+                </div>
+              </div>
+              <div style="font-size: 14px; color: #ddd6fe; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1);">
+                👤 ${r.player.name}
+                ${r.player.tags.length ? ' <span style="opacity: 0.7;">(' + r.player.tags.join('、') + ')</span>' : ''}
+              </div>
+              ${r.role.relations.length ? `<div style="font-size: 12px; color: #a78bfa; margin-top: 4px;">💫 关系: ${r.role.relations.join(' / ')}</div>` : ''}
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      <div style="background: rgba(236, 72, 153, 0.15); border: 1px solid rgba(236, 72, 153, 0.4);
+        border-radius: 16px; padding: 20px; margin-bottom: 24px;">
+        <div style="font-size: 20px; color: #f9a8d4; margin-bottom: 12px;">📢 开场温馨提醒</div>
+        <div style="font-size: 14px; color: #e9d5ff; line-height: 1.8;">
+          1. 反串是欢乐的灵魂，请各位戏精放下包袱，尽情表演<br>
+          2. 如有CP组合请双方自愿原则， uncomfortable随时喊停<br>
+          3. 社恐玩家请各位多给点反应，别让人家尴尬<br>
+          4. 最重要的是——玩得开心！🎉
+        </div>
+      </div>
+
+      ${warnings.length > 0 ? `
+        <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4);
+          border-radius: 16px; padding: 16px; margin-bottom: 24px; text-align: left;">
+          <div style="font-size: 16px; color: #fcd34d; margin-bottom: 8px;">⚠️ 特别注意</div>
+          ${warnings.map(w => `<div style="font-size: 13px; color: #fde68a; margin: 4px 0;">· ${w.title}：${w.text.split('\n')[0]}</div>`).join('')}
+        </div>
+      ` : ''}
+
+      <div style="font-size: 14px; color: #a78bfa; opacity: 0.7;">
+        由「反串排位抽签台」友情生成 🎪
+      </div>
+    </div>
+  `;
+  document.getElementById('posterContent').innerHTML = posterHTML;
+  document.getElementById('posterModal').classList.remove('hidden');
+}
+
+function downloadPoster() {
+  const poster = document.getElementById('posterContent');
+  html2canvas(poster, {
+    backgroundColor: null,
+    scale: 2
+  }).then(canvas => {
+    const link = document.createElement('a');
+    link.download = `反串抽签结果_${new Date().getTime()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  });
+}
+
+function closePoster() {
+  document.getElementById('posterModal').classList.add('hidden');
+}
+
+renderPlayers();
+renderRoles();
+</script>
+
+</body>
+</html>
