@@ -896,6 +896,20 @@
       <h3 class="title-font text-2xl text-yellow-400">📋 配置模板导入导出</h3>
       <button onclick="closeConfigModal()" class="text-purple-300 hover:text-white text-2xl">✕</button>
     </div>
+
+    <div class="glass p-4 mb-4">
+      <div class="flex items-center justify-between mb-3">
+        <div class="font-bold text-purple-200">📚 我的剧本模板库</div>
+        <button onclick="saveCurrentToLibrary()" class="btn-primary px-3 py-1.5 rounded-lg text-xs">💾 保存当前为模板</button>
+      </div>
+      <div id="templateLibraryList" class="space-y-2 max-h-48 overflow-y-auto mb-3">
+        <div class="text-center text-purple-300 opacity-60 py-4 text-sm">还没有保存剧本模板，快存一个吧~</div>
+      </div>
+      <div class="text-xs text-purple-300 opacity-80">
+        💡 小贴士：给每个本起个名字（如「告别诗」「来电」），下次直接点「恢复」秒导入
+      </div>
+    </div>
+
     <div class="grid grid-cols-2 gap-4 mb-6">
       <div class="glass p-4">
         <div class="font-bold text-yellow-400 mb-2">📤 导出配置</div>
@@ -913,10 +927,30 @@
     </div>
     <div>
       <div class="font-bold text-purple-200 mb-2">📝 或直接粘贴JSON文本</div>
-      <textarea id="configTextArea" class="w-full h-40 rounded-xl bg-white/5 border border-white/20 text-white p-3 text-sm font-mono" placeholder='{"players":[...],"roles":[...]}'></textarea>
+      <textarea id="configTextArea" class="w-full h-32 rounded-xl bg-white/5 border border-white/20 text-white p-3 text-sm font-mono" placeholder='{"players":[...],"roles":[...]}'></textarea>
       <div class="flex justify-end gap-3 mt-3">
         <button onclick="importConfigFromText()" class="btn-primary px-4 py-2 rounded-xl font-bold text-sm">从文本导入</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<div id="saveTemplateModal" class="modal-overlay hidden">
+  <div class="glass p-6 max-w-md mx-4">
+    <h3 class="title-font text-2xl text-yellow-400 mb-4">💾 保存为剧本模板</h3>
+    <div class="mb-4">
+      <label class="block text-sm text-purple-200 mb-2">剧本名称</label>
+      <input id="newTemplateName" type="text" placeholder="例如：告别诗、来电、漓川怪谈簿"
+        class="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40">
+    </div>
+    <div class="mb-4">
+      <label class="block text-sm text-purple-200 mb-2">备注（可选）</label>
+      <input id="newTemplateNote" type="text" placeholder="例如：7人欢乐本 / 情感本专用"
+        class="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40">
+    </div>
+    <div class="flex justify-end gap-3">
+      <button onclick="closeSaveTemplateModal()" class="btn-secondary px-6 py-2 rounded-xl font-bold">取消</button>
+      <button onclick="confirmSaveTemplate()" class="btn-primary px-6 py-2 rounded-xl font-bold">✅ 确认保存</button>
     </div>
   </div>
 </div>
@@ -938,8 +972,13 @@ let currentPosterType = 'player';
 let drawHistory = [];
 let currentResultTab = 'result';
 let lockedResults = [];
+let lockedPlayerNames = new Set();
 let hostCurrentStage = -1;
 let replaceTemp = { playerIdx: -1, newRoleIdx: -1 };
+let baselineData = null;
+let templateLibrary = [];
+let lastHistoryId = null;
+let isFinalized = false;
 
 const acceptLevels = { crossGender: 3, intimacy: 3, tease: 3 };
 
@@ -1656,34 +1695,119 @@ function renderReviewView() {
   const minScore = Math.min(...allScores);
   const avgScore = (allScores.reduce((a, b) => a + b, 0) / allScores.length).toFixed(1);
 
+  let comparisonHTML = '';
+  let changedCount = 0;
+  if (baselineData) {
+    const changes = [];
+    matchResults.forEach((curr, i) => {
+      const base = baselineData.matchResults.find(b => b.player.name === curr.player.name);
+      if (base && base.role.name !== curr.role.name) {
+        changes.push({
+          player: curr.player.name,
+          from: base.role.name,
+          to: curr.role.name,
+          scoreDiff: (curr.score - base.score).toFixed(0),
+          crossChanged: (base.player.gender !== base.role.gender) !== (curr.player.gender !== curr.role.gender)
+        });
+        changedCount++;
+      }
+    });
+
+    const baselineConfirmSet = new Set(baselineData.hostConfirmItems.map(i => `${i.title}|${i.players.join(',')}`));
+    const currentConfirmSet = new Set(hostConfirmItems.map(i => `${i.title}|${i.players.join(',')}`));
+    const newRisks = hostConfirmItems.filter(i => !baselineConfirmSet.has(`${i.title}|${i.players.join(',')}`));
+    const goneRisks = baselineData.hostConfirmItems.filter(i => !currentConfirmSet.has(`${i.title}|${i.players.join(',')}`));
+
+    if (changedCount > 0 || newRisks.length > 0 || goneRisks.length > 0) {
+      comparisonHTML = `
+        <div class="glass p-4 mb-4 border-yellow-500/30 border-2">
+          <div class="flex justify-between items-center mb-3">
+            <div class="font-bold text-lg text-yellow-400">🔧 微调前后对比</div>
+            <span class="text-xs bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded-full">共 ${changedCount} 人换了角色</span>
+          </div>
+          ${changedCount > 0 ? `
+            <div class="text-sm font-bold text-purple-200 mb-2">角色变动详情：</div>
+            ${changes.map(c => `
+              <div class="bg-white/5 rounded-lg p-3 mb-2">
+                <div class="flex flex-wrap items-center gap-2 text-sm">
+                  <span class="font-bold">${c.player}</span>
+                  <span class="text-red-300 line-through">${c.from}</span>
+                  <span class="text-xl">→</span>
+                  <span class="text-green-300 font-bold">${c.to}</span>
+                  <span class="text-xs ${c.scoreDiff >= 0 ? 'text-green-400' : 'text-red-400'} ml-auto">
+                    匹配分 ${c.scoreDiff >= 0 ? '+' : ''}${c.scoreDiff}
+                  </span>
+                </div>
+              </div>
+            `).join('')}
+          ` : '<div class="text-sm text-purple-300 mb-2">✅ 角色无变动</div>'}
+
+          ${newRisks.length > 0 ? `
+            <div class="mt-3 p-3 bg-red-500/10 rounded-lg border border-red-500/30">
+              <div class="text-xs font-bold text-red-400 mb-2">⚠️ 新增风险 (${newRisks.length}项)</div>
+              ${newRisks.map(i => `<div class="text-xs text-red-300">• ${i.icon} ${i.title}: ${i.players.join('、')}</div>`).join('')}
+            </div>
+          ` : ''}
+          ${goneRisks.length > 0 ? `
+            <div class="mt-3 p-3 bg-green-500/10 rounded-lg border border-green-500/30">
+              <div class="text-xs font-bold text-green-400 mb-2">✅ 消除风险 (${goneRisks.length}项)</div>
+              ${goneRisks.map(i => `<div class="text-xs text-green-300">• ${i.icon} ${i.title}: ${i.players.join('、')}</div>`).join('')}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    } else {
+      comparisonHTML = `
+        <div class="glass p-4 mb-4 border-green-500/30 border">
+          <div class="text-center text-green-300">
+            <span class="text-xl mr-2">✅</span>
+            <span class="font-bold">本次未发生微调，结果与初始分配一致</span>
+          </div>
+        </div>
+      `;
+    }
+  }
+
   container.innerHTML = `
     <div class="glass p-4 mb-4">
-      <div class="grid grid-cols-3 gap-4 text-center">
-        <div>
-          <div class="text-2xl font-bold text-green-400">${maxScore.toFixed(0)}</div>
-          <div class="text-xs text-purple-300">最高分</div>
-        </div>
-        <div>
-          <div class="text-2xl font-bold text-yellow-400">${avgScore}</div>
-          <div class="text-xs text-purple-300">平均分</div>
-        </div>
-        <div>
-          <div class="text-2xl font-bold text-red-400">${minScore.toFixed(0)}</div>
-          <div class="text-xs text-purple-300">最低分</div>
+      <div class="flex justify-between items-center mb-3">
+        <div class="grid grid-cols-3 gap-4 text-center flex-1">
+          <div>
+            <div class="text-2xl font-bold text-green-400">${maxScore.toFixed(0)}</div>
+            <div class="text-xs text-purple-300">最高分</div>
+          </div>
+          <div>
+            <div class="text-2xl font-bold text-yellow-400">${avgScore}</div>
+            <div class="text-xs text-purple-300">平均分</div>
+          </div>
+          <div>
+            <div class="text-2xl font-bold text-red-400">${minScore.toFixed(0)}</div>
+            <div class="text-xs text-purple-300">最低分</div>
+          </div>
         </div>
       </div>
+      <div class="flex justify-center gap-2">
+        <button onclick="copyReviewText(false)" class="btn-secondary px-3 py-1.5 rounded-lg text-xs">📋 复制完整复盘</button>
+        <button onclick="copyReviewText(true)" class="btn-primary px-3 py-1.5 rounded-lg text-xs">📋 复制最终精简版</button>
+      </div>
     </div>
+
+    ${comparisonHTML}
 
     ${matchResults.map((r, idx) => {
       const scorePct = Math.max(10, Math.min(100, ((r.score - minScore) / Math.max(1, maxScore - minScore)) * 100));
       const reasons = r.reasons.filter(x => !x.startsWith('⚠️'));
       const warns = r.reasons.filter(x => x.startsWith('⚠️'));
       const isCross = r.player.gender !== 'other' && r.role.gender !== 'other' && r.player.gender !== r.role.gender;
+      const isLocked = lockedResults.includes(idx);
       return `
-        <div class="glass p-4">
+        <div class="glass p-4 ${isLocked ? 'border-green-500/40' : ''}">
           <div class="flex justify-between items-start mb-2">
             <div>
-              <div class="font-bold text-lg">${idx + 1}. ${r.player.name} → ${r.role.name}</div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-lg">${idx + 1}. ${r.player.name} → ${r.role.name}</span>
+                ${isLocked ? '<span class="text-xs bg-green-500/30 text-green-300 px-2 py-0.5 rounded-full">🔒 锁定</span>' : ''}
+              </div>
               <div class="text-sm text-purple-300">
                 ${genderText[r.player.gender]}玩家 ${isCross ? '⚠️ 反串' : '✅ 顺色'} ${roleGenderText[r.role.gender]}
               </div>
@@ -1747,46 +1871,81 @@ function renderReviewView() {
   `;
 }
 
-function copyReviewText() {
+function copyReviewText(finalOnly = false) {
   const now = new Date();
   const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
-  let text = `🎭 反串排位抽签复盘报告\n`;
-  text += `生成时间: ${dateStr}\n`;
-  text += `玩家数: ${players.length} | 角色数: ${roles.length} | 未抽中: ${unselectedRoles.length}\n\n`;
-  text += `═══════════════════════════════\n\n`;
-
-  matchResults.forEach((r, idx) => {
-    const isCross = r.player.gender !== 'other' && r.role.gender !== 'other' && r.player.gender !== r.role.gender;
-    const reasons = r.reasons.filter(x => !x.startsWith('⚠️'));
-    const warns = r.reasons.filter(x => x.startsWith('⚠️'));
-    text += `【${idx + 1}】${r.player.name} → ${r.role.name}\n`;
-    text += `  匹配分: ${r.score.toFixed(0)} | ${isCross ? '⚠️ 反串' : '✅ 顺色'} | 风险: ${riskEmoji[r.role.risk]}${riskText[r.role.risk]}\n`;
-    text += `  接受度: 🎭${r.player.acceptCrossGender}/5 💕${r.player.acceptIntimacy}/5 🎪${r.player.acceptTease}/5\n`;
-    if (reasons.length) text += `  ✅ ${reasons.join(' | ')}\n`;
-    if (warns.length) text += `  ⚠️ ${warns.map(w => w.replace('⚠️ ', '')).join(' | ')}\n`;
-    text += `\n`;
-  });
-
-  if (hostConfirmItems.length > 0) {
-    text += `═══════════════════════════════\n`;
-    text += `🎙️ 风险确认记录:\n\n`;
-    hostConfirmItems.forEach((item, idx) => {
-      text += `${idx + 1}. ${item.icon} ${item.title}\n`;
-      text += `   涉及: ${item.players.join(' / ')} → ${item.roleName}\n`;
-      text += `   状态: ${confirmStatus[idx] ? '✅ 已确认' : '❌ 未确认'}\n`;
-      if (confirmNotes[idx]) text += `   备注: ${confirmNotes[idx]}\n`;
+  let text = '';
+  if (finalOnly) {
+    text = `🎭【最终分配结果】\n`;
+    text += `时间：${dateStr}\n`;
+    text += `═══════════════════\n\n`;
+    matchResults.forEach((r, idx) => {
+      const isCross = r.player.gender !== 'other' && r.role.gender !== 'other' && r.player.gender !== r.role.gender;
+      text += `${idx + 1}. ${r.player.name} → ${r.role.name}`;
+      if (isCross) text += `（反串）`;
       text += `\n`;
     });
-  }
+    if (unselectedRoles.length > 0) {
+      text += `\n📭 未抽中：${unselectedRoles.map(r => r.name).join('、')}\n`;
+    }
+    if (hostConfirmItems.length > 0 && hostConfirmItems.some((_, i) => confirmStatus[i])) {
+      text += `\n🎙️ 已确认风险项：\n`;
+      hostConfirmItems.forEach((item, idx) => {
+        if (confirmStatus[idx]) text += `  • ${item.icon} ${item.title} (${item.players.join('、')})\n`;
+      });
+    }
+    text += `\n—— 现场已确认，祝大家玩得开心！🎉`;
+  } else {
+    text = `🎭 反串排位抽签复盘报告\n`;
+    text += `生成时间: ${dateStr} | ${isFinalized ? '✅ 最终定稿' : '📝 草稿版'}\n`;
+    text += `玩家数: ${players.length} | 角色数: ${roles.length} | 未抽中: ${unselectedRoles.length}\n`;
+    if (baselineData) {
+      const changed = matchResults.filter((r, i) => {
+        const b = baselineData.matchResults.find(x => x.player.name === r.player.name);
+        return b && b.role.name !== r.role.name;
+      }).length;
+      if (changed > 0) text += `微调记录: 共 ${changed} 人调整过角色\n`;
+    }
+    text += `\n═══════════════════════════════\n\n`;
 
-  if (unselectedRoles.length > 0) {
-    text += `═══════════════════════════════\n`;
-    text += `📭 未抽中角色: ${unselectedRoles.map(r => r.name).join('、')}\n`;
+    matchResults.forEach((r, idx) => {
+      const isCross = r.player.gender !== 'other' && r.role.gender !== 'other' && r.player.gender !== r.role.gender;
+      const reasons = r.reasons.filter(x => !x.startsWith('⚠️'));
+      const warns = r.reasons.filter(x => x.startsWith('⚠️'));
+      let baselineNote = '';
+      if (baselineData) {
+        const b = baselineData.matchResults.find(x => x.player.name === r.player.name);
+        if (b && b.role.name !== r.role.name) baselineNote = `（从"${b.role.name}"调整，匹配分${(r.score - b.score) >= 0 ? '+' : ''}${(r.score - b.score).toFixed(0)}）`;
+      }
+      text += `【${idx + 1}】${r.player.name} → ${r.role.name} ${baselineNote}\n`;
+      text += `  匹配分: ${r.score.toFixed(0)} | ${isCross ? '⚠️ 反串' : '✅ 顺色'} | 风险: ${riskEmoji[r.role.risk]}${riskText[r.role.risk]}\n`;
+      text += `  接受度: 🎭${r.player.acceptCrossGender}/5 💕${r.player.acceptIntimacy}/5 🎪${r.player.acceptTease}/5\n`;
+      if (reasons.length) text += `  ✅ ${reasons.join(' | ')}\n`;
+      if (warns.length) text += `  ⚠️ ${warns.map(w => w.replace('⚠️ ', '')).join(' | ')}\n`;
+      text += `\n`;
+    });
+
+    if (hostConfirmItems.length > 0) {
+      text += `═══════════════════════════════\n`;
+      text += `🎙️ 风险确认记录:\n\n`;
+      hostConfirmItems.forEach((item, idx) => {
+        text += `${idx + 1}. ${item.icon} ${item.title}\n`;
+        text += `   涉及: ${item.players.join(' / ')} → ${item.roleName}\n`;
+        text += `   状态: ${confirmStatus[idx] ? '✅ 已确认' : '❌ 未确认'}\n`;
+        if (confirmNotes[idx]) text += `   备注: ${confirmNotes[idx]}\n`;
+        text += `\n`;
+      });
+    }
+
+    if (unselectedRoles.length > 0) {
+      text += `═══════════════════════════════\n`;
+      text += `📭 未抽中角色: ${unselectedRoles.map(r => r.name).join('、')}\n`;
+    }
   }
 
   navigator.clipboard.writeText(text).then(() => {
-    showWarning('📋 复制成功！', '复盘文字版已复制到剪贴板，可直接粘贴到群里~');
+    showWarning('📋 复制成功！', finalOnly ? '最终精简版已复制到剪贴板，适合发玩家群~' : '完整复盘文字版已复制到剪贴板，可直接粘贴到群里~');
   }).catch(() => {
     showWarning('⚠️ 复制失败', '请手动选择文本复制，或检查浏览器权限。');
   });
@@ -1859,43 +2018,63 @@ function initHostStage() {
   updateHostStageUI();
 }
 
+function refreshLockedPlayerNames() {
+  lockedPlayerNames = new Set(lockedResults.map(i => matchResults[i]?.player.name).filter(Boolean));
+}
+
+function rebuildLockedIndexesFromNames() {
+  const newLocked = [];
+  matchResults.forEach((r, idx) => {
+    if (lockedPlayerNames.has(r.player.name)) newLocked.push(idx);
+  });
+  lockedResults = newLocked;
+}
+
 function toggleLockResult(idx) {
   if (lockedResults.includes(idx)) {
     lockedResults = lockedResults.filter(x => x !== idx);
   } else {
     lockedResults.push(idx);
   }
+  refreshLockedPlayerNames();
   showFinalResults();
+  refreshAllViews();
 }
 
 function clearAllLocks() {
   lockedResults = [];
+  lockedPlayerNames = new Set();
   showFinalResults();
+  refreshAllViews();
   showWarning('已全部解锁', '所有分配已解锁，可以重新整体重抽或只重抽了~');
 }
 
 function redrawUnlocked() {
+  refreshLockedPlayerNames();
+
   if (lockedResults.length === 0) {
     if (!confirm('还没有锁定任何分配，确定要全部重抽吗？')) return;
+    saveBaseline();
     matchResults = smartMatch();
     const { warns, confirms } = checkWarnings(matchResults);
     warnings = warns;
     hostConfirmItems = confirms;
     confirmStatus = new Array(confirms.length).fill(false);
     confirmNotes = new Array(confirms.length).fill('');
+    rebuildLockedIndexesFromNames();
     initHostStage();
     showFinalResults();
-    saveDrawHistory();
+    refreshAllViews();
+    saveDrawHistory(false);
     return;
   }
 
-  const lockedItems = lockedResults.map(i => matchResults[i]);
-  const lockedPlayerNames = new Set(lockedItems.map(r => r.player.name));
-  const lockedRoleNames = new Set(lockedItems.map(r => r.role.name));
-
+  saveBaseline();
+  const lockedItems = lockedResults.map(i => matchResults[i]).filter(Boolean);
+  const lockedRoleNamesSet = new Set(lockedItems.map(r => r.role.name));
   const freePlayers = players.filter(p => !lockedPlayerNames.has(p.name));
   const lockedRolesArr = lockedItems.map(r => r.role);
-  const freeRoles = roles.filter(r => !lockedRoleNames.has(r.name));
+  const freeRoles = roles.filter(r => !lockedRoleNamesSet.has(r.name));
 
   if (freePlayers.length === 0) {
     showWarning('全部锁定啦', '所有玩家的分配都已锁定，没有可重抽的了~');
@@ -1906,26 +2085,16 @@ function redrawUnlocked() {
     return;
   }
 
-  const tempAllRoles = [...freeRoles, ...lockedRolesArr];
   const shuffledFree = [...freeRoles].sort(() => Math.random() - 0.5);
   const usedFreeRoles = shuffledFree.slice(0, freePlayers.length);
-  const allRolesForMatch = [...usedFreeRoles, ...lockedRolesArr];
-
-  const tempPlayers = [...freePlayers, ...lockedItems.map(r => r.player)];
-  const tempRoles = allRolesForMatch;
-
-  const originalPlayers = [...players];
-  const originalRoles = [...roles];
-  players = tempPlayers;
-  roles = tempRoles;
 
   const newResults = [];
   const usedFree = new Set();
-  const usedPlayers = new Set();
+  const usedPlayersSet = new Set();
 
   lockedItems.forEach(item => {
     newResults.push(item);
-    usedPlayers.add(item.player.name);
+    usedPlayersSet.add(item.player.name);
   });
 
   const pairs = [];
@@ -1938,8 +2107,8 @@ function redrawUnlocked() {
   pairs.sort((a, b) => b.score - a.score);
 
   for (const p of pairs) {
-    if (usedPlayers.has(freePlayers[p.pIdx].name) || usedFree.has(p.rIdx)) continue;
-    usedPlayers.add(freePlayers[p.pIdx].name);
+    if (usedPlayersSet.has(freePlayers[p.pIdx].name) || usedFree.has(p.rIdx)) continue;
+    usedPlayersSet.add(freePlayers[p.pIdx].name);
     usedFree.add(p.rIdx);
     newResults.push({
       player: freePlayers[p.pIdx],
@@ -1950,30 +2119,33 @@ function redrawUnlocked() {
   }
 
   while (newResults.length < players.length) {
+    let added = false;
     for (let i = 0; i < freePlayers.length; i++) {
-      if (!usedPlayers.has(freePlayers[i].name)) {
+      if (!usedPlayersSet.has(freePlayers[i].name)) {
         for (let j = 0; j < usedFreeRoles.length; j++) {
           if (!usedFree.has(j)) {
-            usedPlayers.add(freePlayers[i].name);
+            usedPlayersSet.add(freePlayers[i].name);
             usedFree.add(j);
             const { score, reasons } = calculateMatchScore(freePlayers[i], usedFreeRoles[j]);
             newResults.push({ player: freePlayers[i], role: usedFreeRoles[j], score, reasons });
+            added = true;
             break;
           }
         }
       }
+      if (added) break;
     }
+    if (!added) break;
   }
 
   const finalResults = [];
-  originalPlayers.forEach(p => {
+  players.forEach(p => {
     const found = newResults.find(r => r.player.name === p.name);
     if (found) finalResults.push(found);
   });
 
   matchResults = finalResults;
-  const lockedRoleSet = new Set(lockedRolesArr.map(r => r.name));
-  unselectedRoles = originalRoles.filter(r => !matchResults.some(m => m.role.name === r.name));
+  unselectedRoles = roles.filter(r => !matchResults.some(m => m.role.name === r.name));
 
   const { warns, confirms } = checkWarnings(matchResults);
   warnings = warns;
@@ -1981,13 +2153,12 @@ function redrawUnlocked() {
   confirmStatus = new Array(confirms.length).fill(false);
   confirmNotes = new Array(confirms.length).fill('');
 
-  players = originalPlayers;
-  roles = originalRoles;
-
+  rebuildLockedIndexesFromNames();
   initHostStage();
   showFinalResults();
-  saveDrawHistory();
-  showWarning('已重抽未锁定项', `保留了 ${lockedResults.length} 个锁定分配，重抽了 ${freePlayers.length} 个玩家的角色~`);
+  refreshAllViews();
+  saveDrawHistory(false);
+  showWarning('已重抽未锁定项', `🔒 保留了 ${lockedResults.length} 个锁定分配，重抽了 ${freePlayers.length} 个玩家的角色~`);
 }
 
 function openReplaceModal() {
@@ -1995,22 +2166,27 @@ function openReplaceModal() {
     showWarning('没有可替换角色', '未抽中角色列表为空，无法替换。可以先角色多于玩家的场景再使用~');
     return;
   }
+  refreshLockedPlayerNames();
   replaceTemp = { playerIdx: -1, newRoleIdx: -1 };
   const content = document.getElementById('replaceModalContent');
+  const freeCount = matchResults.filter((_, i) => !lockedResults.includes(i)).length;
   content.innerHTML = `
+    ${freeCount === 0 ? `<div class="mb-4 p-3 rounded-lg bg-red-500/20 text-red-300 text-sm">⚠️ 所有分配都已锁定，无法替换！请先解锁要调整的玩家</div>` : ''}
     <div>
-      <div class="font-bold text-sm mb-2 text-yellow-400">第一步：选择要替换的分配</div>
+      <div class="font-bold text-sm mb-2 text-yellow-400">第一步：选择要替换的分配（锁定的无法选中）</div>
       <div class="space-y-2 max-h-48 overflow-y-auto">
-        ${matchResults.map((r, i) => `
-          <label class="flex items-center gap-2 p-2 rounded-lg bg-white/5 cursor-pointer hover:bg-white/10">
-            <input type="radio" name="replacePlayer" value="${i}" onchange="replaceTemp.playerIdx = ${i}">
-            <span class="text-sm">${r.player.name} → ${r.role.name}${lockedResults.includes(i) ? ' 🔒' : ''}</span>
+        ${matchResults.map((r, i) => {
+          const isLocked = lockedResults.includes(i);
+          return `
+          <label class="flex items-center gap-2 p-2 rounded-lg ${isLocked ? 'bg-green-500/10 opacity-60 cursor-not-allowed' : 'bg-white/5 cursor-pointer hover:bg-white/10'}">
+            <input type="radio" name="replacePlayer" value="${i}" onchange="replaceTemp.playerIdx = ${i}" ${isLocked ? 'disabled' : ''}>
+            <span class="text-sm">${r.player.name} → ${r.role.name}${isLocked ? ' 🔒 (已锁定，先解锁才能改)' : ''}</span>
           </label>
-        `).join('')}
+        `}).join('')}
       </div>
     </div>
     <div>
-      <div class="font-bold text-sm mb-2 text-pink-400">第二步：选择替换角色</div>
+      <div class="font-bold text-sm mb-2 text-pink-400 mt-4">第二步：选择替换角色</div>
       <div class="space-y-2 max-h-48 overflow-y-auto">
         ${unselectedRoles.map((r, i) => `
           <label class="flex items-center gap-2 p-2 rounded-lg bg-white/5 cursor-pointer hover:bg-white/10">
@@ -2033,7 +2209,12 @@ function confirmReplace() {
     showWarning('请选择完整', '要先选要替换的分配，还要选用来替换的角色哦~');
     return;
   }
+  if (lockedResults.includes(replaceTemp.playerIdx)) {
+    showWarning('被锁定了！', '这个玩家的分配已锁定🔒，请先解锁再替换~');
+    return;
+  }
 
+  saveBaseline();
   const oldRole = matchResults[replaceTemp.playerIdx].role;
   const newRole = unselectedRoles[replaceTemp.newRoleIdx];
   const player = matchResults[replaceTemp.playerIdx].player;
@@ -2051,29 +2232,154 @@ function confirmReplace() {
   confirmStatus = new Array(confirms.length).fill(false);
   confirmNotes = new Array(confirms.length).fill('');
 
+  rebuildLockedIndexesFromNames();
   closeReplaceModal();
   showFinalResults();
-  saveDrawHistory();
+  refreshAllViews();
+  saveDrawHistory(false);
   showWarning('替换成功！', `${player.name} 的角色已从「${oldRole.name}」换成「${newRole.name}」，风险确认已重新计算~`);
 }
 
 function applyManualAdjust() {
+  saveBaseline();
   const { warns, confirms } = checkWarnings(matchResults);
   warnings = warns;
   hostConfirmItems = confirms;
   confirmStatus = new Array(confirms.length).fill(false);
   confirmNotes = new Array(confirms.length).fill('');
-  saveDrawHistory();
-  showWarning('微调已应用', '所有调整已保存，复盘、海报、历史记录都会使用最新的结果~');
+  saveDrawHistory(true);
+  showWarning('🎉 微调已锁定为最终版', '本次结果已作为最终定稿保存到历史记录，复盘、海报都会使用最新的结果~');
+}
+
+function saveBaseline() {
+  if (!baselineData && matchResults.length > 0) {
+    baselineData = {
+      matchResults: JSON.parse(JSON.stringify(matchResults)),
+      warnings: JSON.parse(JSON.stringify(warnings)),
+      hostConfirmItems: JSON.parse(JSON.stringify(hostConfirmItems)),
+      unselectedRoles: JSON.parse(JSON.stringify(unselectedRoles))
+    };
+  }
+}
+
+function refreshAllViews() {
+  if (currentResultTab === 'review') renderReviewView();
+  if (currentResultTab === 'history') renderHistoryView();
+  if (!document.getElementById('posterModal').classList.contains('hidden') && !posterHistoryContext) {
+    renderPoster(currentPosterType);
+  }
 }
 
 function openConfigModal() {
   document.getElementById('configTextArea').value = '';
   document.getElementById('configModal').classList.remove('hidden');
+  renderTemplateLibrary();
 }
 
 function closeConfigModal() {
   document.getElementById('configModal').classList.add('hidden');
+}
+
+function renderTemplateLibrary() {
+  const list = document.getElementById('templateLibraryList');
+  if (templateLibrary.length === 0) {
+    list.innerHTML = `<div class="text-center text-purple-300 opacity-60 py-4 text-sm">还没有保存剧本模板，快存一个吧~</div>`;
+    return;
+  }
+
+  list.innerHTML = templateLibrary.map((tpl, idx) => `
+    <div class="glass p-3 flex items-center justify-between gap-3">
+      <div class="flex-1 min-w-0">
+        <div class="font-bold text-sm text-purple-100 truncate">📚 ${tpl.name}</div>
+        <div class="text-xs text-purple-300 truncate">
+          ${tpl.note ? tpl.note + ' · ' : ''}👥 ${tpl.players.length}人 · 🎴 ${tpl.roles.length}角色
+          <span class="opacity-50">· ${new Date(tpl.savedAt).toLocaleDateString()}</span>
+        </div>
+      </div>
+      <div class="flex gap-2 flex-shrink-0">
+        <button onclick="restoreTemplate(${idx})" class="btn-primary px-3 py-1.5 rounded-lg text-xs">恢复</button>
+        <button onclick="downloadTemplate(${idx})" class="btn-secondary px-3 py-1.5 rounded-lg text-xs">下载</button>
+        <button onclick="deleteTemplate(${idx})" class="btn-danger px-3 py-1.5 rounded-lg text-xs">删除</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function saveCurrentToLibrary() {
+  if (players.length === 0 && roles.length === 0) {
+    showWarning('没有内容', '还没有录入任何玩家或角色，没什么可保存的~');
+    return;
+  }
+  document.getElementById('newTemplateName').value = '';
+  document.getElementById('newTemplateNote').value = '';
+  document.getElementById('saveTemplateModal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('newTemplateName').focus(), 100);
+}
+
+function closeSaveTemplateModal() {
+  document.getElementById('saveTemplateModal').classList.add('hidden');
+}
+
+function confirmSaveTemplate() {
+  const name = document.getElementById('newTemplateName').value.trim();
+  const note = document.getElementById('newTemplateNote').value.trim();
+  if (!name) {
+    showWarning('起个名字吧', '给这个剧本模板起个名字才好下次认出来呀~');
+    return;
+  }
+  const tpl = {
+    id: Date.now(),
+    name: name,
+    note: note,
+    savedAt: new Date().toISOString(),
+    players: JSON.parse(JSON.stringify(players)),
+    roles: JSON.parse(JSON.stringify(roles))
+  };
+  templateLibrary.unshift(tpl);
+  if (templateLibrary.length > 20) templateLibrary = templateLibrary.slice(0, 20);
+  try { localStorage.setItem('templateLibrary', JSON.stringify(templateLibrary)); } catch(e) {}
+  closeSaveTemplateModal();
+  renderTemplateLibrary();
+  showWarning('保存成功！', `剧本模板「${name}」已存入模板库，下次直接点「恢复」即可~`);
+}
+
+function restoreTemplate(idx) {
+  const tpl = templateLibrary[idx];
+  const data = { players: tpl.players, roles: tpl.roles };
+  applyLoadedConfig(data);
+}
+
+function downloadTemplate(idx) {
+  const tpl = templateLibrary[idx];
+  const config = {
+    version: '1.0',
+    exportedAt: new Date().toISOString(),
+    templateName: tpl.name,
+    templateNote: tpl.note,
+    players: tpl.players,
+    roles: tpl.roles
+  };
+  const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.download = `剧本模板_${tpl.name}.json`;
+  link.href = URL.createObjectURL(blob);
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function deleteTemplate(idx) {
+  const tpl = templateLibrary[idx];
+  if (!confirm(`确定要删除模板「${tpl.name}」吗？`)) return;
+  templateLibrary.splice(idx, 1);
+  try { localStorage.setItem('templateLibrary', JSON.stringify(templateLibrary)); } catch(e) {}
+  renderTemplateLibrary();
+}
+
+function loadTemplateLibrary() {
+  try {
+    const saved = localStorage.getItem('templateLibrary');
+    if (saved) templateLibrary = JSON.parse(saved);
+  } catch(e) {}
 }
 
 function exportConfig() {
@@ -2162,10 +2468,11 @@ function importConfigFromText() {
   }
 }
 
-function saveDrawHistory() {
+function saveDrawHistory(isFinal = false) {
   const record = {
     id: Date.now(),
     timestamp: new Date().toISOString(),
+    isFinal: isFinal,
     players: JSON.parse(JSON.stringify(players)),
     roles: JSON.parse(JSON.stringify(roles)),
     matchResults: JSON.parse(JSON.stringify(matchResults)),
@@ -2173,11 +2480,27 @@ function saveDrawHistory() {
     hostConfirmItems: JSON.parse(JSON.stringify(hostConfirmItems)),
     confirmStatus: [...confirmStatus],
     confirmNotes: [...confirmNotes],
-    warnings: JSON.parse(JSON.stringify(warnings))
+    warnings: JSON.parse(JSON.stringify(warnings)),
+    baselineData: baselineData ? JSON.parse(JSON.stringify(baselineData)) : null
   };
 
-  drawHistory.unshift(record);
-  if (drawHistory.length > 10) drawHistory = drawHistory.slice(0, 10);
+  if (!isFinal && lastHistoryId !== null) {
+    const idx = drawHistory.findIndex(r => r.id === lastHistoryId);
+    if (idx !== -1 && !drawHistory[idx].isFinal) {
+      drawHistory[idx] = record;
+      drawHistory[idx].id = lastHistoryId;
+      lastHistoryId = record.id;
+    } else {
+      drawHistory.unshift(record);
+      lastHistoryId = record.id;
+    }
+  } else {
+    drawHistory.unshift(record);
+    lastHistoryId = record.id;
+    if (isFinal) isFinalized = true;
+  }
+
+  if (drawHistory.length > 20) drawHistory = drawHistory.slice(0, 20);
 
   try {
     localStorage.setItem('drawHistory', JSON.stringify(drawHistory));
@@ -2214,13 +2537,15 @@ function renderHistoryView() {
     const playerNames = record.players.map(p => p.name).join('、');
     const resultCount = record.matchResults.length;
     const unselectedCount = record.unselectedRoles.length;
+    const isFinal = !!record.isFinal;
 
     return `
-      <div class="record-card glass p-4" onclick="restoreHistoryRecord(${idx})">
+      <div class="record-card glass p-4 ${isFinal ? 'border-green-500/40' : ''}" onclick="restoreHistoryRecord(${idx})">
         <div class="flex justify-between items-start">
-          <div>
-            <div class="font-bold text-lg mb-1">
-              #${drawHistory.length - idx} · ${dateStr}
+          <div class="flex-1">
+            <div class="flex flex-wrap items-center gap-2 mb-1">
+              <span class="font-bold text-lg">#${drawHistory.length - idx} · ${dateStr}</span>
+              ${isFinal ? '<span class="text-xs bg-green-500/30 text-green-300 px-2 py-0.5 rounded-full">✅ 最终定稿</span>' : '<span class="text-xs bg-yellow-500/30 text-yellow-300 px-2 py-0.5 rounded-full">📝 中间草稿</span>'}
             </div>
             <div class="text-sm text-purple-200 mb-1">
               👥 ${playerNames}
@@ -2228,6 +2553,7 @@ function renderHistoryView() {
             <div class="text-xs text-purple-300">
               🎴 ${resultCount}个角色已分配 ${unselectedCount > 0 ? `| 📭 ${unselectedCount}个未抽中` : ''}
               ${record.hostConfirmItems.length > 0 ? `| ⚠️ ${record.hostConfirmItems.length}项风险确认` : ''}
+              ${record.baselineData ? `| 🔧 有微调记录` : ''}
             </div>
           </div>
           <div class="flex gap-2">
@@ -2254,12 +2580,21 @@ function restoreHistoryRecord(idx) {
   confirmStatus = [...record.confirmStatus];
   confirmNotes = [...record.confirmNotes];
   warnings = JSON.parse(JSON.stringify(record.warnings));
+  baselineData = record.baselineData ? JSON.parse(JSON.stringify(record.baselineData)) : null;
+  isFinalized = !!record.isFinal;
+  lastHistoryId = record.id;
+
+  lockedResults = [];
+  lockedPlayerNames = new Set();
+  hostCurrentStage = 2;
 
   renderPlayers();
   renderRoles();
   updateStepStatus();
   proceedToStep3(3);
   showFinalResults();
+  refreshAllViews();
+  updateHostStageUI();
   switchResultTab('result');
 }
 
@@ -2477,6 +2812,7 @@ function closePoster() {
 renderPlayers();
 renderRoles();
 loadDrawHistory();
+loadTemplateLibrary();
 </script>
 
 </body>
